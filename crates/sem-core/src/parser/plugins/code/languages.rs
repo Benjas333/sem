@@ -61,6 +61,10 @@ fn get_fortran() -> Option<Language> {
     Some(tree_sitter_fortran::LANGUAGE.into())
 }
 
+fn get_swift() -> Option<Language> {
+    Some(tree_sitter_swift::LANGUAGE.into())
+}
+
 static TYPESCRIPT_CONFIG: LanguageConfig = LanguageConfig {
     id: "typescript",
     extensions: &[".ts"],
@@ -269,6 +273,25 @@ static FORTRAN_CONFIG: LanguageConfig = LanguageConfig {
     get_language: get_fortran,
 };
 
+static SWIFT_CONFIG: LanguageConfig = LanguageConfig {
+    id: "swift",
+    extensions: &[".swift"],
+    entity_node_types: &[
+        "function_declaration",
+        "class_declaration",
+        "protocol_declaration",
+        "init_declaration",
+        "deinit_declaration",
+        "subscript_declaration",
+        "typealias_declaration",
+        "property_declaration",
+        "operator_declaration",
+        "associatedtype_declaration",
+    ],
+    container_node_types: &["class_body", "protocol_body", "enum_class_body"],
+    get_language: get_swift,
+};
+
 static ALL_CONFIGS: &[&LanguageConfig] = &[
     &TYPESCRIPT_CONFIG,
     &TSX_CONFIG,
@@ -283,6 +306,7 @@ static ALL_CONFIGS: &[&LanguageConfig] = &[
     &CSHARP_CONFIG,
     &PHP_CONFIG,
     &FORTRAN_CONFIG,
+    &SWIFT_CONFIG,
 ];
 
 pub fn get_language_config(extension: &str) -> Option<&'static LanguageConfig> {
@@ -298,6 +322,7 @@ pub fn get_all_code_extensions() -> &'static [&'static str] {
         ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".go", ".rs",
         ".java", ".c", ".h", ".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx",
         ".rb", ".cs", ".php", ".f90", ".f95", ".f03", ".f08", ".f", ".for",
+        ".swift",
     ];
     EXTENSIONS
 }

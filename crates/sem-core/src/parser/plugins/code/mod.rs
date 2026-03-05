@@ -218,6 +218,56 @@ int main() {
     }
 
     #[test]
+    fn test_swift_entity_extraction() {
+        let code = r#"
+import Foundation
+
+class UserService {
+    var name: String
+
+    init(name: String) {
+        self.name = name
+    }
+
+    func getUsers() -> [User] {
+        return db.findAll()
+    }
+}
+
+struct Point {
+    var x: Double
+    var y: Double
+}
+
+enum Status {
+    case active
+    case inactive
+    case deleted
+}
+
+protocol Repository {
+    associatedtype Item
+    func findById(id: String) -> Item?
+    func findAll() -> [Item]
+}
+
+func helper(x: Int) -> Int {
+    return x * 2
+}
+"#;
+        let plugin = CodeParserPlugin;
+        let entities = plugin.extract_entities(code, "UserService.swift");
+        let names: Vec<&str> = entities.iter().map(|e| e.name.as_str()).collect();
+        eprintln!("Swift entities: {:?}", entities.iter().map(|e| (&e.name, &e.entity_type)).collect::<Vec<_>>());
+
+        assert!(names.contains(&"UserService"), "Should find class UserService, got: {:?}", names);
+        assert!(names.contains(&"Point"), "Should find struct Point, got: {:?}", names);
+        assert!(names.contains(&"Status"), "Should find enum Status, got: {:?}", names);
+        assert!(names.contains(&"Repository"), "Should find protocol Repository, got: {:?}", names);
+        assert!(names.contains(&"helper"), "Should find function helper, got: {:?}", names);
+    }
+
+    #[test]
     fn test_typescript_entity_extraction() {
         // Existing language should still work
         let code = r#"
