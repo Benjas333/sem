@@ -20,6 +20,7 @@ pub struct DiffOptions {
     pub stdin: bool,
     pub profile: bool,
     pub file_exts: Vec<String>,
+    pub files: Vec<String>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -32,7 +33,32 @@ pub fn diff_command(opts: DiffOptions) {
     let total_start = Instant::now();
 
     let t0 = Instant::now();
-    let (file_changes, from_stdin) = if opts.stdin {
+    let (file_changes, from_stdin) = if opts.files.len() == 2 {
+        // Compare two arbitrary files: sem diff file1.ts file2.ts
+        let path_a = Path::new(&opts.files[0]);
+        let path_b = Path::new(&opts.files[1]);
+
+        let content_a = std::fs::read_to_string(path_a).unwrap_or_else(|e| {
+            eprintln!("\x1b[31mError reading {}: {e}\x1b[0m", path_a.display());
+            process::exit(1);
+        });
+        let content_b = std::fs::read_to_string(path_b).unwrap_or_else(|e| {
+            eprintln!("\x1b[31mError reading {}: {e}\x1b[0m", path_b.display());
+            process::exit(1);
+        });
+
+        let change = FileChange {
+            file_path: opts.files[1].clone(),
+            old_file_path: None,
+            status: sem_core::git::types::FileStatus::Modified,
+            before_content: Some(content_a),
+            after_content: Some(content_b),
+        };
+        (vec![change], false)
+    } else if opts.files.len() == 1 {
+        eprintln!("\x1b[31mError: provide two files to compare, or none for git diff.\x1b[0m");
+        process::exit(1);
+    } else if opts.stdin {
         // Read FileChange[] from stdin — no git repo needed
         let mut input = String::new();
         std::io::stdin().read_to_string(&mut input).unwrap_or_else(|e| {

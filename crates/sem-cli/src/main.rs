@@ -18,6 +18,10 @@ struct Cli {
 enum Commands {
     /// Show semantic diff of changes
     Diff {
+        /// Two files to compare (e.g. sem diff old.ts new.ts)
+        #[arg(num_args = 0..=2)]
+        files: Vec<String>,
+
         /// Show only staged changes
         #[arg(long)]
         staged: bool,
@@ -103,6 +107,7 @@ fn main() {
 
     match cli.command {
         Some(Commands::Diff {
+            files,
             staged,
             commit,
             from,
@@ -130,6 +135,7 @@ fn main() {
                 stdin,
                 profile,
                 file_exts,
+                files,
             });
         }
         Some(Commands::Blame { file, json }) => {
@@ -196,6 +202,7 @@ fn main() {
                 stdin: false,
                 profile: false,
                 file_exts: vec![],
+                files: vec![],
             });
         }
     }
