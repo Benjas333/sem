@@ -496,4 +496,41 @@ resource "aws_instance" "web" {
         assert!(lifecycle.parent_id.is_some(), "lifecycle should be nested under resource");
         assert!(types.contains(&"attribute"), "Should preserve attribute entity type for top-level attributes");
     }
+
+    #[test]
+    fn test_kotlin_entity_extraction() {
+        let code = r#"
+class UserService {
+    val name: String = ""
+
+    fun greet(): String {
+        return "Hello, $name"
+    }
+
+    companion object {
+        fun create(): UserService = UserService()
+    }
+}
+
+interface Repository {
+    fun findById(id: Int): Any?
+}
+
+object AppConfig {
+    val version = "1.0"
+}
+
+fun topLevel(x: Int): Int = x * 2
+"#;
+        let plugin = CodeParserPlugin;
+        let entities = plugin.extract_entities(code, "App.kt");
+        let names: Vec<&str> = entities.iter().map(|e| e.name.as_str()).collect();
+        eprintln!("Kotlin entities: {:?}", entities.iter().map(|e| (&e.name, &e.entity_type)).collect::<Vec<_>>());
+        assert!(names.contains(&"UserService"), "got: {:?}", names);
+        assert!(names.contains(&"greet"), "got: {:?}", names);
+        assert!(names.contains(&"Repository"), "got: {:?}", names);
+        assert!(names.contains(&"findById"), "got: {:?}", names);
+        assert!(names.contains(&"AppConfig"), "got: {:?}", names);
+        assert!(names.contains(&"topLevel"), "got: {:?}", names);
+    }
 }

@@ -80,7 +80,7 @@ sem blame src/auth.ts
 
 ## What it parses
 
-17 programming languages with full entity extraction via tree-sitter:
+19 programming languages with full entity extraction via tree-sitter:
 
 | Language | Extensions | Entities |
 |----------|-----------|----------|
@@ -98,6 +98,8 @@ sem blame src/auth.ts
 | Swift | `.swift` | functions, classes, protocols, structs, enums, properties |
 | Elixir | `.ex` `.exs` | modules, functions, macros, guards, protocols |
 | Bash | `.sh` | functions |
+| HCL/Terraform | `.hcl` `.tf` `.tfvars` | blocks, attributes (qualified names for nested blocks) |
+| Kotlin | `.kt` `.kts` | classes, interfaces, objects, functions, properties, companion objects |
 | Fortran | `.f90` `.f95` `.f` | functions, subroutines, modules, programs |
 | Vue | `.vue` | template/script/style blocks + inner TS/JS entities |
 

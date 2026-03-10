@@ -84,6 +84,10 @@ fn get_hcl() -> Option<Language> {
     Some(tree_sitter_hcl::LANGUAGE.into())
 }
 
+fn get_kotlin() -> Option<Language> {
+    Some(tree_sitter_kotlin_ng::LANGUAGE.into())
+}
+
 static TYPESCRIPT_CONFIG: LanguageConfig = LanguageConfig {
     id: "typescript",
     extensions: &[".ts"],
@@ -376,6 +380,24 @@ static HCL_CONFIG: LanguageConfig = LanguageConfig {
     get_language: get_hcl,
 };
 
+static KOTLIN_CONFIG: LanguageConfig = LanguageConfig {
+    id: "kotlin",
+    extensions: &[".kt", ".kts"],
+    entity_node_types: &[
+        "function_declaration",
+        "class_declaration",
+        "object_declaration",
+        "property_declaration",
+        "companion_object",
+        "secondary_constructor",
+        "type_alias",
+    ],
+    container_node_types: &["class_body", "enum_class_body"],
+    call_entity_identifiers: &[],
+    suppressed_nested_entities: &[],
+    get_language: get_kotlin,
+};
+
 static ALL_CONFIGS: &[&LanguageConfig] = &[
     &TYPESCRIPT_CONFIG,
     &TSX_CONFIG,
@@ -394,6 +416,7 @@ static ALL_CONFIGS: &[&LanguageConfig] = &[
     &ELIXIR_CONFIG,
     &BASH_CONFIG,
     &HCL_CONFIG,
+    &KOTLIN_CONFIG,
 ];
 
 pub fn get_language_config(extension: &str) -> Option<&'static LanguageConfig> {
@@ -409,6 +432,7 @@ pub fn get_all_code_extensions() -> &'static [&'static str] {
         ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".go", ".rs", ".java", ".c", ".h",
         ".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx", ".rb", ".cs", ".php", ".f90", ".f95", ".f03",
         ".f08", ".f", ".for", ".swift", ".ex", ".exs", ".sh", ".hcl", ".tf", ".tfvars",
+        ".kt", ".kts",
     ];
     EXTENSIONS
 }

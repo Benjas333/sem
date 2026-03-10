@@ -204,10 +204,10 @@ Total impact: 4 entities across 4 files`}</code></pre>
       <section className="px-6 py-16 border-t border-white/10">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl font-bold mb-8" style={{ fontFamily: "var(--font-heading)" }}>
-            11 Languages
+            19 Languages
           </h2>
           <div className="flex flex-wrap gap-3">
-            {["TypeScript", "TSX", "JavaScript", "Python", "Go", "Rust", "Java", "C", "C++", "Ruby", "C#"].map((lang) => (
+            {["TypeScript", "TSX", "JavaScript", "Python", "Go", "Rust", "Java", "C", "C++", "Ruby", "C#", "PHP", "Swift", "Kotlin", "Elixir", "Bash", "HCL", "Fortran", "Vue"].map((lang) => (
               <span key={lang} className="px-4 py-2 border border-white/15 rounded-lg text-sm text-gray-300">
                 {lang}
               </span>

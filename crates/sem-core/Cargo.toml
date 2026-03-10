@@ -1,6 +1,6 @@
 [package]
 name = "sem-core"
-version = "0.3.8"
+version = "0.3.9"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 
@@ -23,6 +23,7 @@ tree-sitter-swift = "0.7"
 tree-sitter-elixir = "0.3"
 tree-sitter-bash = "0.23"
 tree-sitter-hcl = "1.1"
+tree-sitter-kotlin-ng = "1.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"

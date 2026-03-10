@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "sem - Semantic Version Control",
-  description: "Entity-level diff, blame, graph, and impact analysis. Structural hashing distinguishes cosmetic from real changes across 11 languages.",
+  description: "Entity-level diff, blame, graph, and impact analysis. Structural hashing distinguishes cosmetic from real changes across 19 languages.",
 };
 
 export default function RootLayout({
