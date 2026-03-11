@@ -42,13 +42,13 @@ Or build and run via Docker:
 
 ```bash
 docker build -t sem .
-docker run --rm -t -v "$(pwd):/repo" -w /repo sem diff
+docker run --rm -it -u "$(id -u):$(id -g)" -v "$(pwd):/repo" sem diff
 ```
 
 For a native-feeling alias, add to your shell config:
 
 ```bash
-alias sem='docker run --rm -t -v "$(pwd):/repo" -w /repo sem'
+alias sem='docker run --rm -it -u "$(id -u):$(id -g)" -v "$(pwd):/repo" sem'
 ```
 
 Then use `sem` as normal.
