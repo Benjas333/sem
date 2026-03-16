@@ -136,7 +136,7 @@ static TSX_CONFIG: LanguageConfig = LanguageConfig {
 
 static JAVASCRIPT_CONFIG: LanguageConfig = LanguageConfig {
     id: "javascript",
-    extensions: &[".js", ".jsx", ".mjs", ".cjs"],
+    extensions: &[".js", ".jsx", ".mjs", ".cjs", ".es6"],
     entity_node_types: &[
         "function_declaration",
         "class_declaration",
