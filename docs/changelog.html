@@ -124,6 +124,104 @@
 
       <div class="changelog-entry">
         <div class="changelog-title">
+          <span class="changelog-sha">f2f57ef</span>
+          <span class="changelog-tag feat">feat</span>
+          Full git diff syntax support
+        </div>
+        <p class="changelog-body">
+          <code style="color:var(--fg)">sem diff</code> now supports the same positional argument syntax as <code style="color:var(--fg)">git diff</code>.
+          Single ref (<code style="color:var(--fg)">sem diff HEAD~3</code>), two-dot range (<code style="color:var(--fg)">sem diff main..feature</code>),
+          three-dot merge-base (<code style="color:var(--fg)">sem diff main...feature</code>), pathspec filtering (<code style="color:var(--fg)">sem diff -- src/</code>),
+          and <code style="color:var(--fg)">--cached</code> alias for <code style="color:var(--fg)">--staged</code>.
+          Also adds <code style="color:var(--fg)">--format plain</code> to the Rust CLI.
+          Thanks <a href="https://github.com/taciturnaxolotl" style="color:var(--cyan)">@taciturnaxolotl</a> for the contribution (<a href="https://github.com/Ataraxy-Labs/sem/pull/37" style="color:var(--cyan)">#37</a>).
+        </p>
+        <p class="changelog-stats">+400 lines &bull; 11 files &bull; new RefToWorking scope, merge-base resolution, pathspec filtering</p>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-title">
+          <span class="changelog-sha">30816d4</span>
+          <span class="changelog-tag feat">feat</span>
+          Markdown diff formatting
+        </div>
+        <p class="changelog-body">
+          New <code style="color:var(--fg)">--format markdown</code> output for <code style="color:var(--fg)">sem diff</code>.
+          Renders entity changes as clean markdown tables with status symbols, useful for PR comments and CI pipelines.
+          Thanks <a href="https://github.com/Ataraxy-Labs/sem/pull/32" style="color:var(--cyan)">#32</a> for the contribution.
+        </p>
+        <p class="changelog-stats">+200 lines &bull; Rust + TypeScript formatters</p>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-title">
+          <span class="changelog-sha">8c10b73</span>
+          <span class="changelog-tag fix">fix</span>
+          JS/TS scope boundary extraction
+        </div>
+        <p class="changelog-body">
+          Fixed entity extraction for JavaScript and TypeScript to respect scope boundaries.
+          Local variables inside function bodies were being extracted as top-level entities.
+          Now only extracts declarations at module/class scope. Important correctness fix for weave merge quality.
+          Thanks <a href="https://github.com/c22" style="color:var(--cyan)">@c22</a> (<a href="https://github.com/Ataraxy-Labs/sem/pull/35" style="color:var(--cyan)">#35</a>).
+        </p>
+        <p class="changelog-stats">+300 lines &bull; 7 new tests &bull; entity_extractor.rs, languages.rs</p>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-title">
+          <span class="changelog-sha">7f781d2</span>
+          <span class="changelog-tag feat">feat</span>
+          Verbose inline content diffs
+        </div>
+        <p class="changelog-body">
+          New <code style="color:var(--fg)">sem diff -v</code> flag shows inline before/after content for each modified entity.
+          Lets you see exactly what changed inside a function without switching to <code style="color:var(--fg)">git diff</code>.
+        </p>
+        <p class="changelog-stats">+70 lines &bull; terminal formatter</p>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-title">
+          <span class="changelog-sha">807318b</span>
+          <span class="changelog-tag feat">feat</span>
+          ERB parser plugin
+        </div>
+        <p class="changelog-body">
+          New parser for ERB templates (<code style="color:var(--fg)">.erb</code>) via tree-sitter-embedded-template.
+          Extracts blocks, expressions, and code tags as entities. Handles all ERB variants including <code style="color:var(--fg)">&lt;%-</code> dash directives.
+        </p>
+        <p class="changelog-stats">+414 lines &bull; 21st language</p>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-title">
+          <span class="changelog-sha">2e6a8f8</span>
+          <span class="changelog-tag fix">fix</span>
+          Go grouped declaration extraction
+        </div>
+        <p class="changelog-body">
+          Fixed extraction of Go grouped <code style="color:var(--fg)">var()</code>, <code style="color:var(--fg)">const()</code>, and <code style="color:var(--fg)">type()</code> declarations.
+          Previously only extracted the first declaration in each group. Now extracts each individual declaration as a separate entity.
+        </p>
+        <p class="changelog-stats">sem-core 0.3.12</p>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-title">
+          <span class="changelog-sha">070d6d4</span>
+          <span class="changelog-tag feat">feat</span>
+          Published to crates.io + Homebrew
+        </div>
+        <p class="changelog-body">
+          <code style="color:var(--fg)">sem-core</code> and <code style="color:var(--fg)">sem-cli</code> are now on crates.io.
+          Install with <code style="color:var(--fg)">brew install sem-cli</code> or <code style="color:var(--fg)">cargo install sem-cli</code>.
+        </p>
+        <p class="changelog-stats">v0.3.10 &bull; crates.io + homebrew-core</p>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-title">
           <span class="changelog-sha">59f40ed</span>
           <span class="changelog-tag feat">feat</span>
           v0.3.1: --file-exts flag for language filtering
