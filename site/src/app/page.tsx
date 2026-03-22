@@ -46,7 +46,7 @@ export default function Home() {
 
         {/* Install */}
         <div className="mb-16">
-          <pre><code>cd sem/crates && cargo build --release</code></pre>
+          <pre><code>brew install sem</code></pre>
         </div>
       </section>
 
