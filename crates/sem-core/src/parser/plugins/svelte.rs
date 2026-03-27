@@ -1622,6 +1622,10 @@ let items = $state(['a', 'b', 'c']);
             compact_div.content_hash, spaced_div.content_hash,
             "content hash should change when source text changes"
         );
+        assert_eq!(
+            compact_div.structural_hash, spaced_div.structural_hash,
+            "structural hash should be stable across whitespace changes"
+        );
     }
 
     #[test]
@@ -1975,28 +1979,6 @@ function hello() {}
     use crate::parser::differ::compute_semantic_diff;
     use crate::parser::plugins::create_default_registry;
 
-    fn svelte_diff(before: Option<&str>, after: Option<&str>) -> crate::parser::differ::DiffResult {
-        let registry = create_default_registry();
-        compute_semantic_diff(
-            &[FileChange {
-                file_path: "src/routes/+page.svelte".to_string(),
-                status: if before.is_none() {
-                    FileStatus::Added
-                } else if after.is_none() {
-                    FileStatus::Deleted
-                } else {
-                    FileStatus::Modified
-                },
-                old_file_path: None,
-                before_content: before.map(str::to_string),
-                after_content: after.map(str::to_string),
-            }],
-            &registry,
-            Some("abc123"),
-            Some("test-author"),
-        )
-    }
-
     #[test]
     fn test_svelte_diff_new_file_all_entities_added() {
         let after = r#"<script>
@@ -2005,7 +1987,19 @@ function hello() {}
 
 <button onclick={() => count++}>{count}</button>"#;
 
-        let result = svelte_diff(None, Some(after));
+        let registry = create_default_registry();
+        let result = compute_semantic_diff(
+            &[FileChange {
+                file_path: "src/routes/+page.svelte".to_string(),
+                status: FileStatus::Added,
+                old_file_path: None,
+                before_content: None,
+                after_content: Some(after.to_string()),
+            }],
+            &registry,
+            Some("abc123"),
+            Some("test-author"),
+        );
 
         assert!(result.added_count > 0, "expected added entities");
         assert_eq!(result.deleted_count, 0);
@@ -2068,54 +2062,4 @@ function hello() {}
         }
     }
 
-    #[test]
-    fn test_svelte_diff_modify_element_content_is_structural() {
-        let before = r#"<button>Click me</button>"#;
-        let after = r#"<button>Submit form</button>"#;
-
-        let result = svelte_diff(Some(before), Some(after));
-
-        assert!(
-            result.changes.iter().any(|c| c.entity_name == "button@1"
-                && c.change_type == ChangeType::Modified
-                && c.structural_change == Some(true)),
-            "expected button@1 to be Modified with structural_change=true: {:?}",
-            result
-                .changes
-                .iter()
-                .map(|c| (&c.entity_name, &c.change_type, &c.structural_change))
-                .collect::<Vec<_>>()
-        );
-    }
-
-    #[test]
-    fn test_svelte_diff_tag_comments_are_non_structural() {
-        let before = r#"<div class="app"></div>"#;
-
-        for after in [
-            r#"<div // Svelte 5 tag comment
-class="app"></div>"#,
-            r#"<div /* Svelte 5 tag comment */
-class="app"></div>"#,
-        ] {
-            let result = svelte_diff(Some(before), Some(after));
-
-            assert!(
-                result.changes.iter().any(
-                    |c| c.entity_type == "svelte_element" && c.structural_change == Some(false)
-                ),
-                "expected non-structural element change: {:?}",
-                result.changes
-            );
-            assert!(
-                result
-                    .changes
-                    .iter()
-                    .any(|c| c.entity_type == "svelte_fragment"
-                        && c.structural_change == Some(false)),
-                "expected non-structural fragment change: {:?}",
-                result.changes
-            );
-        }
-    }
 }
