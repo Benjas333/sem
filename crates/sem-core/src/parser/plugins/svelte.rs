@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt;
 use std::path::Path;
 
 use tree_sitter::{Node as TsNode, Parser};
@@ -122,6 +123,100 @@ enum SvelteFileKind {
     Module { lang: ScriptLanguage },
 }
 
+#[derive(Clone, Copy)]
+enum SvelteEntityKind {
+    ModuleFile,
+    InstanceScript,
+    ModuleScript,
+    Style,
+    Fragment,
+    Element,
+    Snippet,
+    IfBlock,
+    EachBlock,
+    KeyBlock,
+    AwaitBlock,
+    Component,
+    SlotElement,
+    HeadElement,
+    BodyElement,
+    WindowElement,
+    DocumentElement,
+    DynamicComponentElement,
+    DynamicElementElement,
+    SelfElement,
+    FragmentElement,
+    BoundaryElement,
+    OptionsElement,
+    TitleElement,
+}
+
+impl fmt::Display for SvelteEntityKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl SvelteEntityKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::ModuleFile => "svelte_module",
+            Self::InstanceScript => "svelte_instance_script",
+            Self::ModuleScript => "svelte_module_script",
+            Self::Style => "svelte_style",
+            Self::Fragment => "svelte_fragment",
+            Self::Element => "svelte_element",
+            Self::Snippet => "svelte_snippet",
+            Self::IfBlock => "svelte_if_block",
+            Self::EachBlock => "svelte_each_block",
+            Self::KeyBlock => "svelte_key_block",
+            Self::AwaitBlock => "svelte_await_block",
+            Self::Component => "svelte_component",
+            Self::SlotElement => "svelte_slot_element",
+            Self::HeadElement => "svelte_head",
+            Self::BodyElement => "svelte_body",
+            Self::WindowElement => "svelte_window",
+            Self::DocumentElement => "svelte_document",
+            Self::DynamicComponentElement => "svelte_component_dynamic",
+            Self::DynamicElementElement => "svelte_element_dynamic",
+            Self::SelfElement => "svelte_self",
+            Self::FragmentElement => "svelte_fragment_element",
+            Self::BoundaryElement => "svelte_boundary",
+            Self::OptionsElement => "svelte_options",
+            Self::TitleElement => "svelte_title_element",
+        }
+    }
+
+    fn metadata_kind(self) -> &'static str {
+        match self {
+            Self::ModuleFile => "module",
+            Self::InstanceScript => "instance_script",
+            Self::ModuleScript => "module_script",
+            Self::Style => "style",
+            Self::Fragment => "fragment",
+            Self::Element => "element",
+            Self::Snippet => "snippet",
+            Self::IfBlock => "if",
+            Self::EachBlock => "each",
+            Self::KeyBlock => "key",
+            Self::AwaitBlock => "await",
+            Self::Component => "component",
+            Self::SlotElement => "slot",
+            Self::HeadElement => "head",
+            Self::BodyElement => "body",
+            Self::WindowElement => "window",
+            Self::DocumentElement => "document",
+            Self::DynamicComponentElement => "dynamic_component",
+            Self::DynamicElementElement => "dynamic_element",
+            Self::SelfElement => "self",
+            Self::FragmentElement => "fragment_element",
+            Self::BoundaryElement => "boundary",
+            Self::OptionsElement => "options",
+            Self::TitleElement => "title_element",
+        }
+    }
+}
+
 struct ReparentContext<'a> {
     file_path: &'a str,
     parent_id: &'a str,
@@ -184,12 +279,12 @@ impl<'a> SvelteLowerer<'a> {
     }
 
     fn lower_script(&mut self, node: TsNode<'_>, name: String, context: ScriptBlockContext) {
-        let (entity_type, metadata_kind) = match context {
-            ScriptBlockContext::Default => ("svelte_instance_script", "instance_script"),
-            ScriptBlockContext::Module => ("svelte_module_script", "module_script"),
+        let kind = match context {
+            ScriptBlockContext::Default => SvelteEntityKind::InstanceScript,
+            ScriptBlockContext::Module => SvelteEntityKind::ModuleScript,
         };
 
-        let mut metadata = svelte_metadata(metadata_kind);
+        let mut metadata = base_metadata(kind);
         metadata.insert(
             SVELTE_CONTEXT_KEY.to_string(),
             match context {
@@ -205,7 +300,7 @@ impl<'a> SvelteLowerer<'a> {
         );
 
         let entity = self.make_entity(
-            entity_type,
+            kind,
             name,
             None,
             node,
@@ -238,12 +333,12 @@ impl<'a> SvelteLowerer<'a> {
 
     fn lower_style(&mut self, node: TsNode<'_>, name: String) {
         let entity = self.make_entity(
-            "svelte_style",
+            SvelteEntityKind::Style,
             name,
             None,
             node,
             Some(structural_hash(node, self.source_bytes)),
-            Some(svelte_metadata("style")),
+            Some(base_metadata(SvelteEntityKind::Style)),
         );
         self.entities.push(entity);
     }
@@ -264,7 +359,7 @@ impl<'a> SvelteLowerer<'a> {
         let first = *nodes.first()?;
         let last = *nodes.last()?;
         let entity = self.make_ranged_entity(
-            "svelte_fragment",
+            SvelteEntityKind::Fragment,
             name.to_string(),
             parent_id,
             first.start_byte(),
@@ -272,7 +367,7 @@ impl<'a> SvelteLowerer<'a> {
             self.node_start_line(first),
             self.node_end_line(last),
             self.fragment_structural_hash(nodes),
-            Some(svelte_metadata("fragment")),
+            Some(base_metadata(SvelteEntityKind::Fragment)),
         );
         let id = entity.id.clone();
         self.entities.push(entity);
@@ -320,8 +415,7 @@ impl<'a> SvelteLowerer<'a> {
 
     fn lower_if_block(&mut self, node: TsNode<'_>, parent_id: &str) {
         let id = self.push_node_entity(
-            "svelte_if_block",
-            "if",
+            SvelteEntityKind::IfBlock,
             self.line_named("if", node),
             parent_id,
             node,
@@ -352,12 +446,12 @@ impl<'a> SvelteLowerer<'a> {
     ) {
         if let Some((first, rest)) = clauses.split_first() {
             let entity = self.make_entity(
-                "svelte_if_block",
+                SvelteEntityKind::IfBlock,
                 self.line_named("if", *first),
                 Some(parent_id.to_string()),
                 *first,
                 Some(structural_hash(*first, self.source_bytes)),
-                Some(svelte_metadata("if")),
+                Some(base_metadata(SvelteEntityKind::IfBlock)),
             );
             let id = entity.id.clone();
             self.entities.push(entity);
@@ -371,8 +465,7 @@ impl<'a> SvelteLowerer<'a> {
 
     fn lower_each_block(&mut self, node: TsNode<'_>, parent_id: &str) {
         let id = self.push_node_entity(
-            "svelte_each_block",
-            "each",
+            SvelteEntityKind::EachBlock,
             self.line_named("each", node),
             parent_id,
             node,
@@ -392,13 +485,12 @@ impl<'a> SvelteLowerer<'a> {
     }
 
     fn lower_key_block(&mut self, node: TsNode<'_>, parent_id: &str) {
-        self.lower_container_node("svelte_key_block", "key", "key", node, parent_id);
+        self.lower_container_node(SvelteEntityKind::KeyBlock, "key", node, parent_id);
     }
 
     fn lower_await_block(&mut self, node: TsNode<'_>, parent_id: &str) {
         let id = self.push_node_entity(
-            "svelte_await_block",
-            "await",
+            SvelteEntityKind::AwaitBlock,
             self.line_named("await", node),
             parent_id,
             node,
@@ -423,7 +515,7 @@ impl<'a> SvelteLowerer<'a> {
     }
 
     fn lower_snippet_block(&mut self, node: TsNode<'_>, parent_id: &str) {
-        self.lower_container_node("svelte_snippet", "snippet", "snippet", node, parent_id);
+        self.lower_container_node(SvelteEntityKind::Snippet, "snippet", node, parent_id);
     }
 
     fn lower_element(&mut self, node: TsNode<'_>, parent_id: &str) {
@@ -433,14 +525,9 @@ impl<'a> SvelteLowerer<'a> {
 
         match classify_element_kind(tag_name) {
             ElementLowering::Ignore => self.lower_markup_children(node, parent_id),
-            ElementLowering::Kind(entity_type, metadata_kind) => {
-                let id = self.push_node_entity(
-                    entity_type,
-                    metadata_kind,
-                    self.line_named(tag_name, node),
-                    parent_id,
-                    node,
-                );
+            ElementLowering::Kind(kind) => {
+                let id =
+                    self.push_node_entity(kind, self.line_named(tag_name, node), parent_id, node);
                 self.lower_markup_children(node, &id);
             }
         }
@@ -448,19 +535,18 @@ impl<'a> SvelteLowerer<'a> {
 
     fn push_node_entity(
         &mut self,
-        entity_type: &str,
-        metadata_kind: &str,
+        kind: SvelteEntityKind,
         name: String,
         parent_id: &str,
         node: TsNode<'_>,
     ) -> String {
         let entity = self.make_entity(
-            entity_type,
+            kind,
             name,
             Some(parent_id.to_string()),
             node,
             Some(structural_hash(node, self.source_bytes)),
-            Some(svelte_metadata(metadata_kind)),
+            Some(base_metadata(kind)),
         );
         let id = entity.id.clone();
         self.entities.push(entity);
@@ -469,25 +555,18 @@ impl<'a> SvelteLowerer<'a> {
 
     fn lower_container_node(
         &mut self,
-        entity_type: &str,
-        metadata_kind: &str,
-        label: &str,
+        kind: SvelteEntityKind,
+        label: &'static str,
         node: TsNode<'_>,
         parent_id: &str,
     ) {
-        let id = self.push_node_entity(
-            entity_type,
-            metadata_kind,
-            self.line_named(label, node),
-            parent_id,
-            node,
-        );
+        let id = self.push_node_entity(kind, self.line_named(label, node), parent_id, node);
         self.lower_markup_children(node, &id);
     }
 
     fn make_entity(
         &self,
-        entity_type: &str,
+        kind: SvelteEntityKind,
         name: String,
         parent_id: Option<String>,
         node: TsNode<'_>,
@@ -495,7 +574,7 @@ impl<'a> SvelteLowerer<'a> {
         metadata: Option<HashMap<String, String>>,
     ) -> SemanticEntity {
         self.make_ranged_entity(
-            entity_type,
+            kind,
             name,
             parent_id,
             node.start_byte(),
@@ -509,7 +588,7 @@ impl<'a> SvelteLowerer<'a> {
 
     fn make_ranged_entity(
         &self,
-        entity_type: &str,
+        kind: SvelteEntityKind,
         name: String,
         parent_id: Option<String>,
         start: usize,
@@ -519,7 +598,7 @@ impl<'a> SvelteLowerer<'a> {
         structural_hash: Option<String>,
         metadata: Option<HashMap<String, String>>,
     ) -> SemanticEntity {
-        let entity_type = entity_type.to_string();
+        let entity_type = kind.as_str().to_string();
         let content = text_for_byte_range(self.source, start, end).to_string();
         SemanticEntity {
             id: build_entity_id(self.file_path, &entity_type, &name, parent_id.as_deref()),
@@ -650,13 +729,13 @@ fn extract_svelte_module_entities(
     file_path: &str,
     lang: ScriptLanguage,
 ) -> Vec<SemanticEntity> {
-    let mut metadata = svelte_metadata("module");
+    let mut metadata = base_metadata(SvelteEntityKind::ModuleFile);
     metadata.insert(
         SVELTE_LANG_KEY.to_string(),
         lang.metadata_value().to_string(),
     );
 
-    let entity_type = "svelte_module".to_string();
+    let entity_type = SvelteEntityKind::ModuleFile.as_str().to_string();
     let module_entity = SemanticEntity {
         id: build_entity_id(file_path, &entity_type, "module", None),
         file_path: file_path.to_string(),
@@ -684,14 +763,17 @@ fn extract_svelte_module_entities(
     entities
 }
 
-fn svelte_metadata(kind: &str) -> HashMap<String, String> {
-    HashMap::from([(SVELTE_KIND_KEY.to_string(), kind.to_string())])
+fn base_metadata(kind: SvelteEntityKind) -> HashMap<String, String> {
+    HashMap::from([(
+        SVELTE_KIND_KEY.to_string(),
+        kind.metadata_kind().to_string(),
+    )])
 }
 
 #[derive(Clone, Copy)]
 enum ElementLowering {
     Ignore,
-    Kind(&'static str, &'static str),
+    Kind(SvelteEntityKind),
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -704,25 +786,25 @@ enum TopLevelNodeKind {
 fn classify_element_kind(tag_name: &str) -> ElementLowering {
     if let Some(local_name) = tag_name.strip_prefix("svelte:") {
         return match local_name {
-            "head" => ElementLowering::Kind("svelte_head", "head"),
-            "body" => ElementLowering::Kind("svelte_body", "body"),
-            "window" => ElementLowering::Kind("svelte_window", "window"),
-            "document" => ElementLowering::Kind("svelte_document", "document"),
-            "component" => ElementLowering::Kind("svelte_component_dynamic", "dynamic_component"),
-            "element" => ElementLowering::Kind("svelte_element_dynamic", "dynamic_element"),
-            "self" => ElementLowering::Kind("svelte_self", "self"),
-            "fragment" => ElementLowering::Kind("svelte_fragment_element", "fragment_element"),
-            "boundary" => ElementLowering::Kind("svelte_boundary", "boundary"),
-            "options" => ElementLowering::Kind("svelte_options", "options"),
+            "head" => ElementLowering::Kind(SvelteEntityKind::HeadElement),
+            "body" => ElementLowering::Kind(SvelteEntityKind::BodyElement),
+            "window" => ElementLowering::Kind(SvelteEntityKind::WindowElement),
+            "document" => ElementLowering::Kind(SvelteEntityKind::DocumentElement),
+            "component" => ElementLowering::Kind(SvelteEntityKind::DynamicComponentElement),
+            "element" => ElementLowering::Kind(SvelteEntityKind::DynamicElementElement),
+            "self" => ElementLowering::Kind(SvelteEntityKind::SelfElement),
+            "fragment" => ElementLowering::Kind(SvelteEntityKind::FragmentElement),
+            "boundary" => ElementLowering::Kind(SvelteEntityKind::BoundaryElement),
+            "options" => ElementLowering::Kind(SvelteEntityKind::OptionsElement),
             _ => ElementLowering::Ignore,
         };
     }
 
     match tag_name {
-        "slot" => ElementLowering::Kind("svelte_slot_element", "slot"),
-        "title" => ElementLowering::Kind("svelte_title_element", "title_element"),
-        _ if is_component_tag(tag_name) => ElementLowering::Kind("svelte_component", "component"),
-        _ => ElementLowering::Kind("svelte_element", "element"),
+        "slot" => ElementLowering::Kind(SvelteEntityKind::SlotElement),
+        "title" => ElementLowering::Kind(SvelteEntityKind::TitleElement),
+        _ if is_component_tag(tag_name) => ElementLowering::Kind(SvelteEntityKind::Component),
+        _ => ElementLowering::Kind(SvelteEntityKind::Element),
     }
 }
 
