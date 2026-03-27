@@ -9,7 +9,7 @@
 <p align="center">
   <a href="https://github.com/Ataraxy-Labs/sem/releases/latest"><img src="https://img.shields.io/github/v/release/Ataraxy-Labs/sem?color=blue&label=release" alt="Release"></a>
   <img src="https://img.shields.io/badge/rust-stable-orange" alt="Rust">
-  <img src="https://img.shields.io/badge/tests-46_passing-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-97_passing-brightgreen" alt="Tests">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="License"></a>
   <img src="https://img.shields.io/badge/languages-21-blue" alt="Languages">
 </p>
