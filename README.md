@@ -107,13 +107,7 @@ sem blame src/auth.ts
 Replace `git diff` output with entity-level diffs. Agents and humans get sem output automatically without changing any commands.
 
 ```bash
-# Set sem as your git diff tool
-git config --global diff.external sem-diff-wrapper
-
-# Create the wrapper script
-echo '#!/bin/sh
-sem diff "$2" "$5"' > ~/.local/bin/sem-diff-wrapper
-chmod +x ~/.local/bin/sem-diff-wrapper
+sem setup
 ```
 
 Now `git diff` shows entity-level changes instead of line-level. No prompts, no agent configuration needed. Everything that calls `git diff` gets sem output automatically.
@@ -121,7 +115,7 @@ Now `git diff` shows entity-level changes instead of line-level. No prompts, no 
 To disable and go back to normal git diff:
 
 ```bash
-git config --global --unset diff.external
+sem unsetup
 ```
 
 ## What it parses
