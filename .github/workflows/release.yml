@@ -22,6 +22,7 @@ jobs:
             name: sem-linux-arm64
             cross_package: gcc-aarch64-linux-gnu
             cross_linker: aarch64-linux-gnu-gcc
+            vendor_openssl: true
           - target: aarch64-apple-darwin
             os: macos-14
             name: sem-darwin-arm64
@@ -56,7 +57,7 @@ jobs:
           echo "linker = \"${{ matrix.cross_linker }}\"" >> ~/.cargo/config.toml
 
       - name: Build
-        run: cargo build --release --target ${{ matrix.target }} -p sem-cli
+        run: cargo build --release --target ${{ matrix.target }} -p sem-cli ${{ matrix.vendor_openssl && '--features vendored-openssl' || '' }}
 
       - name: Package (Unix)
         if: runner.os != 'Windows'
