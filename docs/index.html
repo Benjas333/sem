@@ -126,6 +126,52 @@
     .git-diff-line .path { color: var(--accent); font-weight: 600; }
     .git-diff-line .meta { color: var(--dim2); }
 
+    /* Command grid */
+    .cmd-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .cmd-card {
+      padding: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      transition: border-color 0.2s;
+    }
+    .cmd-card:hover { border-color: #444; }
+    .cmd-card .cmd-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+    .cmd-card .cmd-name code {
+      color: var(--cyan);
+      background: none;
+      padding: 0;
+    }
+    .cmd-card .cmd-desc {
+      font-size: 12px;
+      color: var(--dim);
+      line-height: 1.5;
+    }
+    .cmd-card .cmd-example {
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--dim2);
+      background: var(--bg);
+      padding: 8px 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+    .cmd-card .cmd-example .g { color: var(--green); }
+    .cmd-card .cmd-example .y { color: var(--yellow); }
+    .cmd-card .cmd-example .r { color: var(--red); }
+    .cmd-card .cmd-example .w { color: var(--accent); font-weight: 600; }
+    .cmd-card .cmd-example .d { color: var(--dim2); }
+    .cmd-card .cmd-example .c { color: var(--cyan); }
+
     /* Language grid */
     .lang-grid {
       display: flex;
@@ -201,6 +247,7 @@
 
     @media (max-width: 700px) {
       .side-by-side { grid-template-columns: 1fr; }
+      .cmd-grid { grid-template-columns: 1fr; }
       nav .links { gap: 12px; font-size: 12px; }
       section h2 { font-size: 22px; }
       .speed-row { gap: 12px; }
@@ -230,8 +277,8 @@
         Know what changed.
       </h1>
       <p style="font-size: 16px; color: var(--dim); margin-bottom: 32px; line-height: 1.7; max-width: 480px; margin-left: auto; margin-right: auto;">
-        Entity-level diffs on top of Git.<br>
-        Functions, classes, methods. Not lines.
+        Semantic understanding on top of Git.<br>
+        Diff, blame, impact, log. Functions, not lines.
       </p>
       <div class="install-box" onclick="copyCmd(this)">
         <span class="copied">copied</span>
@@ -330,6 +377,71 @@
       </div>
     </section>
 
+    <!-- ═══ Capabilities ═══ -->
+    <section class="fade-in" style="border-top: 1px solid var(--border);">
+      <h2>Six commands. One binary.</h2>
+      <p class="section-desc">
+        Everything works in any Git repo. No config. No plugins.
+      </p>
+
+      <div class="cmd-grid">
+        <div class="cmd-card">
+          <div class="cmd-name"><code>sem diff</code></div>
+          <div class="cmd-desc">What changed? Entity-level diffs with rename detection, structural hashing, and word-level inline highlights.</div>
+          <pre class="cmd-example"><span class="d">│</span>  <span class="g">⊕</span> <span class="d">function</span>  <span class="w">validateToken</span>    <span class="g">[added]</span>
+<span class="d">│</span>  <span class="y">∆</span> <span class="d">function</span>  <span class="w">authenticateUser</span> <span class="y">[modified]</span>
+<span class="d">│</span>  <span class="r">⊖</span> <span class="d">function</span>  <span class="w">legacyAuth</span>       <span class="r">[deleted]</span></pre>
+        </div>
+
+        <div class="cmd-card">
+          <div class="cmd-name"><code>sem blame</code></div>
+          <div class="cmd-desc">Who changed it? Per-entity blame showing the last commit that touched each function, class, or method.</div>
+          <pre class="cmd-example"><span class="d">│</span>  <span class="g">⊕</span> <span class="w">render_inline_diff</span>  <span class="c">a1a6fbf</span>  <span class="d">Rohan  04-03</span>
+<span class="d">│</span>  <span class="g">⊕</span> <span class="w">format_terminal</span>     <span class="c">a1a6fbf</span>  <span class="d">Rohan  04-03</span></pre>
+        </div>
+
+        <div class="cmd-card">
+          <div class="cmd-name"><code>sem impact</code></div>
+          <div class="cmd-desc">What breaks? Cross-file dependency graph shows every entity that depends on a given function, plus affected tests.</div>
+          <pre class="cmd-example"><span class="w">⊕ function authenticateUser</span>
+  <span class="d">→ depends on:</span>  <span class="c">db.findUser</span>, <span class="c">rateLimiter</span>
+  <span class="d">← used by:</span>    <span class="c">loginRoute</span>, <span class="c">authMiddleware</span>
+  <span class="r">! 42 entities transitively affected</span></pre>
+        </div>
+
+        <div class="cmd-card">
+          <div class="cmd-name"><code>sem log</code></div>
+          <div class="cmd-desc">How did it evolve? Git history for a single entity. See every commit that touched a specific function.</div>
+          <pre class="cmd-example"><span class="d">│</span>  <span class="c">ae576ab</span>  <span class="d">Rohan  02-05</span>  <span class="g">added</span>
+<span class="d">│</span>  <span class="c">a105183</span>  <span class="d">Rohan  02-08</span>  <span class="y">modified (logic)</span>
+<span class="d">│</span>  <span class="c">a1a6fbf</span>  <span class="d">Rohan  04-03</span>  <span class="y">modified (logic)</span></pre>
+        </div>
+
+        <div class="cmd-card">
+          <div class="cmd-name"><code>sem entities</code></div>
+          <div class="cmd-desc">What's in a file? Lists every function, class, method, and type with line ranges.</div>
+          <pre class="cmd-example"><span class="d">entities: src/auth/login.ts</span>
+  <span class="w">function validateToken</span>     <span class="d">(L12:24)</span>
+  <span class="w">function authenticateUser</span>  <span class="d">(L26:45)</span>
+  <span class="w">interface AuthConfig</span>       <span class="d">(L47:52)</span></pre>
+        </div>
+
+        <div class="cmd-card">
+          <div class="cmd-name"><code>sem context</code></div>
+          <div class="cmd-desc">Smart context for AI. Token-budgeted context window: the entity, its dependencies, and dependents. Fits in any LLM prompt.</div>
+          <pre class="cmd-example"><span class="d">context for</span> <span class="w">authenticateUser</span> <span class="d">(budget: 8000)</span>
+  <span class="g">target:</span>          <span class="d">~705 tokens</span>
+  <span class="c">dependencies:</span>    <span class="d">~256 tokens</span>
+  <span class="y">dependents:</span>      <span class="d">~812 tokens</span></pre>
+        </div>
+      </div>
+
+      <p style="text-align: center; margin-top: 24px; font-size: 13px; color: var(--dim);">
+        All commands support <code style="color: var(--cyan); background: none;">--json</code> for machine-readable output.
+        <a href="details.html" style="color: var(--cyan);">Full reference.</a>
+      </p>
+    </section>
+
     <!-- ═══ Act 3: Languages ═══ -->
     <section class="fade-in" style="border-top: 1px solid var(--border);">
       <h2>Your stack. Covered.</h2>
@@ -386,20 +498,25 @@
     <section class="fade-in" style="border-top: 1px solid var(--border); text-align: center;">
       <h2>Try it. 10 seconds.</h2>
       <div style="margin-top: 32px;">
-        <div class="terminal" style="max-width: 480px; margin: 0 auto; text-align: left;">
+        <div class="terminal" style="max-width: 540px; margin: 0 auto; text-align: left;">
           <div class="terminal-bar">
             <div class="terminal-dot"></div>
             <div class="terminal-dot"></div>
             <div class="terminal-dot"></div>
           </div>
-          <div class="terminal-body" style="min-height: auto; font-size: 14px; line-height: 2;">
+          <div class="terminal-body" style="min-height: auto; font-size: 13px; line-height: 1.9;">
 <pre><span style="color: var(--dim);">$</span> <span style="color: var(--accent);">brew install sem-cli</span>
-<span style="color: var(--dim);">$</span> <span style="color: var(--accent);">cd your-repo</span>
-<span style="color: var(--dim);">$</span> <span style="color: var(--accent);">sem diff</span></pre>
+<span style="color: var(--dim);">$</span> <span style="color: var(--accent);">sem setup</span>
+<span style="color: var(--green);">✓</span> Created wrapper script
+<span style="color: var(--green);">✓</span> Set git config --global diff.external = sem
+<span style="color: var(--green);">✓</span> Pre-commit hook installed
+
+<span style="color: var(--green); font-weight: 600;">Done!</span> Running <span style="color: var(--accent);">git diff</span> in any repo will now use sem.
+<span style="color: var(--dim);">  To revert, run: sem unsetup</span></pre>
           </div>
         </div>
         <p style="font-size: 13px; color: var(--dim); margin-top: 20px;">
-          Works in any Git repo. No setup. No config files.<br>
+          One command. Every <code style="color: var(--cyan); background: none;">git diff</code> becomes a <code style="color: var(--cyan); background: none;">sem diff</code>. No config files.<br>
           <span style="color: var(--dim2);">Also: </span>
           <span onclick="copyCmd(this)" style="cursor: pointer; color: var(--dim); border-bottom: 1px dashed var(--dim2);">cargo install --git https://github.com/Ataraxy-Labs/sem sem-cli</span>
         </p>
@@ -436,6 +553,7 @@
       if (!el) return;
 
       const lines = [
+        // --- sem diff ---
         { text: '$ sem diff', cls: 'cmd', pause: 500, typing: true },
         { text: '', pause: 300 },
         { text: '┌─ src/auth/login.ts ──────────────────────────────────', cls: 'd', pause: 50 },
@@ -447,7 +565,7 @@
           { text: 'validateToken', cls: 'w' },
           { text: '          ', cls: '' },
           { text: '[added]', cls: 'g' },
-        ], pause: 100 },
+        ], pause: 80 },
         { parts: [
           { text: '│  ', cls: 'd' },
           { text: '∆', cls: 'y' },
@@ -455,7 +573,7 @@
           { text: 'authenticateUser', cls: 'w' },
           { text: '       ', cls: '' },
           { text: '[modified]', cls: 'y' },
-        ], pause: 100 },
+        ], pause: 80 },
         { parts: [
           { text: '│  ', cls: 'd' },
           { text: '⊖', cls: 'r' },
@@ -463,32 +581,74 @@
           { text: 'legacyAuth', cls: 'w' },
           { text: '             ', cls: '' },
           { text: '[deleted]', cls: 'r' },
-        ], pause: 100 },
-        { text: '│', cls: 'd', pause: 30 },
-        { text: '└──────────────────────────────────────────────────────', cls: 'd', pause: 200 },
-        { text: '', pause: 120 },
-        { text: '┌─ config/database.yml ─────────────────────────────────', cls: 'd', pause: 50 },
-        { text: '│', cls: 'd', pause: 30 },
+        ], pause: 80 },
+        { text: '│', cls: 'd', pause: 20 },
+        { text: '└──────────────────────────────────────────────────────', cls: 'd', pause: 150 },
+        { text: '', pause: 600 },
+        // --- sem impact ---
+        { text: '$ sem impact authenticateUser', cls: 'cmd', pause: 500, typing: true },
+        { text: '', pause: 300 },
+        { parts: [
+          { text: '⊕ function ', cls: 'd' },
+          { text: 'authenticateUser', cls: 'w' },
+          { text: ' (src/auth/login.ts:26)', cls: 'd' },
+        ], pause: 80 },
+        { text: '', pause: 40 },
+        { parts: [
+          { text: '  → depends on:    ', cls: 'd' },
+          { text: 'db.findUser', cls: 'b' },
+          { text: ', ', cls: 'd' },
+          { text: 'rateLimiter.check', cls: 'b' },
+        ], pause: 80 },
+        { parts: [
+          { text: '  ← used by:       ', cls: 'd' },
+          { text: 'loginRoute', cls: 'b' },
+          { text: ', ', cls: 'd' },
+          { text: 'authMiddleware', cls: 'b' },
+        ], pause: 80 },
+        { parts: [
+          { text: '  ', cls: '' },
+          { text: '! 42 entities transitively affected', cls: 'r' },
+        ], pause: 80 },
+        { parts: [
+          { text: '  ', cls: '' },
+          { text: '⚡ 7 tests affected', cls: 'y' },
+        ], pause: 150 },
+        { text: '', pause: 600 },
+        // --- sem blame ---
+        { text: '$ sem blame src/auth/login.ts', cls: 'cmd', pause: 500, typing: true },
+        { text: '', pause: 300 },
+        { text: '┌─ src/auth/login.ts', cls: 'd', pause: 50 },
+        { text: '│', cls: 'd', pause: 20 },
         { parts: [
           { text: '│  ', cls: 'd' },
-          { text: '∆', cls: 'y' },
-          { text: ' property  ', cls: 'd' },
-          { text: 'production.pool_size', cls: 'w' },
-          { text: '   ', cls: '' },
-          { text: '[modified]', cls: 'y' },
-        ], pause: 100 },
+          { text: '⊕', cls: 'g' },
+          { text: ' ', cls: '' },
+          { text: 'validateToken', cls: 'w' },
+          { text: '        ', cls: '' },
+          { text: 'a3f91bc', cls: 'b' },
+          { text: '  Alice   03-28', cls: 'd' },
+        ], pause: 80 },
         { parts: [
-          { text: '│    ', cls: 'd' },
-          { text: '- 5', cls: 'r' },
-        ], pause: 60 },
+          { text: '│  ', cls: 'd' },
+          { text: '⊕', cls: 'g' },
+          { text: ' ', cls: '' },
+          { text: 'authenticateUser', cls: 'w' },
+          { text: '     ', cls: '' },
+          { text: 'f7d42e0', cls: 'b' },
+          { text: '  Bob     02-14', cls: 'd' },
+        ], pause: 80 },
         { parts: [
-          { text: '│    ', cls: 'd' },
-          { text: '+ 20', cls: 'g' },
-        ], pause: 60 },
-        { text: '│', cls: 'd', pause: 30 },
-        { text: '└──────────────────────────────────────────────────────', cls: 'd', pause: 200 },
-        { text: '', pause: 120 },
-        { text: 'Summary: 1 added, 1 modified, 1 deleted across 2 files', pause: 0 },
+          { text: '│  ', cls: 'd' },
+          { text: '⊕', cls: 'g' },
+          { text: ' ', cls: '' },
+          { text: 'AuthConfig', cls: 'w' },
+          { text: '           ', cls: '' },
+          { text: 'e1a08f3', cls: 'b' },
+          { text: '  Alice   01-09', cls: 'd' },
+        ], pause: 80 },
+        { text: '│', cls: 'd', pause: 20 },
+        { text: '└──────────────────────────────────────────────────────', cls: 'd', pause: 0 },
       ];
 
       function makeSpan(text, cls) {

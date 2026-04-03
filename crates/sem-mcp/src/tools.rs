@@ -3,7 +3,23 @@ use serde::Deserialize;
 // ── Tool parameter structs ──
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
-pub struct ExtractEntitiesParams {
+pub struct EntitiesParams {
+    #[schemars(description = "Path to the file (relative to repo root or absolute)")]
+    pub file_path: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct DiffParams {
+    #[schemars(description = "Base ref to compare from (branch, tag, or commit hash, e.g. 'main')")]
+    pub base_ref: String,
+    #[schemars(description = "Target ref to compare to. Defaults to HEAD.")]
+    pub target_ref: Option<String>,
+    #[schemars(description = "Optional: diff only this file")]
+    pub file_path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct BlameParams {
     #[schemars(description = "Path to the file (relative to repo root or absolute)")]
     pub file_path: String,
 }
@@ -19,13 +35,13 @@ pub struct ImpactAnalysisParams {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
-pub struct DiffParams {
-    #[schemars(description = "Base ref to compare from (branch, tag, or commit hash, e.g. 'main')")]
-    pub base_ref: String,
-    #[schemars(description = "Target ref to compare to. Defaults to HEAD.")]
-    pub target_ref: Option<String>,
-    #[schemars(description = "Optional: diff only this file")]
+pub struct LogParams {
+    #[schemars(description = "Name of the entity to trace history for")]
+    pub entity_name: String,
+    #[schemars(description = "Path to the file containing the entity. If omitted, auto-detects.")]
     pub file_path: Option<String>,
+    #[schemars(description = "Maximum number of commits to analyze. Defaults to 50.")]
+    pub limit: Option<usize>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -36,12 +52,4 @@ pub struct ContextParams {
     pub entity_name: String,
     #[schemars(description = "Maximum token budget. Defaults to 8000.")]
     pub token_budget: Option<usize>,
-}
-
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
-pub struct HotspotParams {
-    #[schemars(description = "Optional: analyze hotspots for a specific file only")]
-    pub file_path: Option<String>,
-    #[schemars(description = "Maximum number of hotspots to return. Defaults to 20.")]
-    pub limit: Option<usize>,
 }

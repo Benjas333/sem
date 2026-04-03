@@ -3,6 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use git2::Repository;
 use lru::LruCache;
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
@@ -298,12 +299,12 @@ impl SemServer {
         }
     }
 
-    // ── Tool 1: Extract entities ──
+    // ── Tool 1: Entities ──
 
     #[tool(description = "List all semantic entities (functions, classes, etc.) in a file with their types and line ranges")]
-    async fn sem_extract_entities(
+    async fn sem_entities(
         &self,
-        Parameters(params): Parameters<ExtractEntitiesParams>,
+        Parameters(params): Parameters<EntitiesParams>,
     ) -> Result<CallToolResult, rmcp::ErrorData> {
         let ctx = self
             .get_context(Some(&params.file_path))
@@ -337,7 +338,143 @@ impl SemServer {
         )]))
     }
 
-    // ── Tool 2: Impact analysis (unified: deps, dependents, impact, tests) ──
+    // ── Tool 2: Diff ──
+
+    #[tool(description = "Semantic diff between two refs: shows entity-level changes (added, modified, deleted, renamed) instead of line-level diffs")]
+    async fn sem_diff(
+        &self,
+        Parameters(params): Parameters<DiffParams>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
+        let ctx = self
+            .get_context(params.file_path.as_deref())
+            .await
+            .map_err(internal_err)?;
+
+        let target_ref = params.target_ref.as_deref().unwrap_or("HEAD");
+
+        let scope = DiffScope::Range {
+            from: params.base_ref.clone(),
+            to: target_ref.to_string(),
+        };
+
+        let pathspecs: Vec<String> = if let Some(ref fp) = params.file_path {
+            let (rel, _) = Self::resolve_file_path(&ctx.repo_root, fp);
+            vec![rel]
+        } else {
+            vec![]
+        };
+
+        let file_changes = ctx
+            .git
+            .get_changed_files(&scope, &pathspecs)
+            .map_err(|e| internal_err(e.to_string()))?;
+
+        let diff_result =
+            compute_semantic_diff(&file_changes, &self.registry, None, None);
+
+        let changes: Vec<serde_json::Value> = diff_result
+            .changes
+            .iter()
+            .map(|c| {
+                serde_json::json!({
+                    "file": c.file_path,
+                    "entity_name": c.entity_name,
+                    "entity_type": c.entity_type,
+                    "change_type": c.change_type.to_string(),
+                })
+            })
+            .collect();
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&serde_json::json!({
+                "base_ref": params.base_ref,
+                "target_ref": target_ref,
+                "files_analyzed": diff_result.file_count,
+                "total_changes": changes.len(),
+                "changes": changes,
+            }))
+            .unwrap_or_default(),
+        )]))
+    }
+
+    // ── Tool 3: Blame ──
+
+    #[tool(description = "Entity-level git blame: for each entity in a file, shows who last modified it, when, and why")]
+    async fn sem_blame(
+        &self,
+        Parameters(params): Parameters<BlameParams>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
+        let ctx = self
+            .get_context(Some(&params.file_path))
+            .await
+            .map_err(internal_err)?;
+        let (rel_path, abs_path) = Self::resolve_file_path(&ctx.repo_root, &params.file_path);
+        let content = Self::read_file_at(&abs_path, &rel_path).map_err(internal_err)?;
+
+        let entities = self.cached_extract_entities(&content, &rel_path).await;
+        if entities.is_empty() {
+            if self.registry.get_plugin(&rel_path).is_none() {
+                return Err(internal_err(format!("No parser for file: {}", rel_path)));
+            }
+        }
+
+        let repo = Repository::discover(&ctx.repo_root)
+            .map_err(|e| internal_err(format!("Git error: {}", e)))?;
+
+        let blame = repo
+            .blame_file(Path::new(&rel_path), None)
+            .map_err(|e| internal_err(format!("Cannot blame {}: {}", rel_path, e)))?;
+
+        let mut results: Vec<serde_json::Value> = Vec::new();
+
+        for entity in &entities {
+            let mut latest_time: i64 = 0;
+            let mut latest_author = String::new();
+            let mut latest_sha = String::new();
+            let mut latest_summary = String::new();
+            let mut latest_date = String::new();
+
+            for line in entity.start_line..=entity.end_line {
+                if let Some(hunk) = blame.get_line(line) {
+                    let sig = hunk.final_signature();
+                    let time = sig.when().seconds();
+                    if time > latest_time {
+                        latest_time = time;
+                        latest_author = sig.name().unwrap_or("unknown").to_string();
+                        let oid = hunk.final_commit_id();
+                        latest_sha = format!("{}", oid);
+                        latest_summary = repo
+                            .find_commit(oid)
+                            .ok()
+                            .and_then(|c| c.summary().map(String::from))
+                            .unwrap_or_default();
+                        latest_date = chrono_lite_format(sig.when().seconds());
+                    }
+                }
+            }
+
+            results.push(serde_json::json!({
+                "name": entity.name,
+                "type": entity.entity_type,
+                "lines": [entity.start_line, entity.end_line],
+                "author": latest_author,
+                "date": latest_date,
+                "commit": &latest_sha[..8.min(latest_sha.len())],
+                "summary": latest_summary,
+            }));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&serde_json::json!({
+                "file": rel_path,
+                "entities": results.len(),
+                "blame": results,
+            }))
+            .unwrap_or_default(),
+        )]))
+    }
+
+    // ── Tool 4: Impact ──
 
     #[tool(description = "Unified entity analysis: dependencies, dependents, transitive impact, and affected tests. Use 'mode' to narrow: 'all' (default), 'deps', 'dependents', 'tests'.")]
     async fn sem_impact(
@@ -441,66 +578,190 @@ impl SemServer {
         )]))
     }
 
-    // ── Tool 3: Semantic diff ──
+    // ── Tool 5: Log ──
 
-    #[tool(description = "Semantic diff between two refs: shows entity-level changes (added, modified, deleted, renamed) instead of line-level diffs")]
-    async fn sem_diff(
+    #[tool(description = "Entity evolution history: trace how a specific entity changed across git commits, distinguishing logic changes from cosmetic ones")]
+    async fn sem_log(
         &self,
-        Parameters(params): Parameters<DiffParams>,
+        Parameters(params): Parameters<LogParams>,
     ) -> Result<CallToolResult, rmcp::ErrorData> {
         let ctx = self
             .get_context(params.file_path.as_deref())
             .await
             .map_err(internal_err)?;
 
-        let target_ref = params.target_ref.as_deref().unwrap_or("HEAD");
-
-        let scope = DiffScope::Range {
-            from: params.base_ref.clone(),
-            to: target_ref.to_string(),
+        // Resolve file path: use provided or auto-detect
+        let file_path = match params.file_path {
+            Some(ref fp) => {
+                let (rel, _) = Self::resolve_file_path(&ctx.repo_root, fp);
+                rel
+            }
+            None => {
+                let files = Self::find_supported_files(&ctx.repo_root, &self.registry);
+                let mut found_in: Vec<String> = Vec::new();
+                for fp in &files {
+                    let full = ctx.repo_root.join(fp);
+                    if let Ok(content) = std::fs::read_to_string(&full) {
+                        if let Some(plugin) = self.registry.get_plugin(fp) {
+                            let entities = plugin.extract_entities(&content, fp);
+                            if entities.iter().any(|e| e.name == params.entity_name) {
+                                found_in.push(fp.clone());
+                            }
+                        }
+                    }
+                }
+                match found_in.len() {
+                    0 => {
+                        return Err(internal_err(format!(
+                            "Entity '{}' not found in any file",
+                            params.entity_name
+                        )))
+                    }
+                    1 => found_in.into_iter().next().unwrap(),
+                    _ => {
+                        return Err(internal_err(format!(
+                            "Entity '{}' found in multiple files: {}. Specify file_path to disambiguate.",
+                            params.entity_name,
+                            found_in.join(", ")
+                        )))
+                    }
+                }
+            }
         };
 
-        let pathspecs: Vec<String> = if let Some(ref fp) = params.file_path {
-            let (rel, _) = Self::resolve_file_path(&ctx.repo_root, fp);
-            vec![rel]
-        } else {
-            vec![]
-        };
+        let plugin = self
+            .registry
+            .get_plugin(&file_path)
+            .ok_or_else(|| internal_err(format!("No parser for file: {}", file_path)))?;
 
-        let file_changes = ctx
+        let limit = params.limit.unwrap_or(50);
+        let commits = ctx
             .git
-            .get_changed_files(&scope, &pathspecs)
-            .map_err(|e| internal_err(e.to_string()))?;
+            .get_file_commits(&file_path, limit)
+            .map_err(|e| internal_err(format!("Failed to get file history: {}", e)))?;
 
-        let diff_result =
-            compute_semantic_diff(&file_changes, &self.registry, None, None);
+        if commits.is_empty() {
+            return Err(internal_err(format!("No commits found for {}", file_path)));
+        }
 
-        let changes: Vec<serde_json::Value> = diff_result
-            .changes
-            .iter()
-            .map(|c| {
-                serde_json::json!({
-                    "file": c.file_path,
-                    "entity_name": c.entity_name,
-                    "entity_type": c.entity_type,
-                    "change_type": c.change_type.to_string(),
-                })
-            })
-            .collect();
+        let mut entries: Vec<serde_json::Value> = Vec::new();
+        let mut prev_entity_content: Option<String> = None;
+        let mut prev_structural_hash: Option<String> = None;
+        let mut entity_type = String::new();
+        let mut found_at_least_once = false;
+
+        // Process oldest to newest
+        for commit in commits.iter().rev() {
+            let content = match ctx.git.read_file_at_ref(&commit.sha, &file_path) {
+                Ok(Some(c)) => c,
+                _ => {
+                    if prev_entity_content.is_some() {
+                        let date = chrono_lite_format(commit.date.parse::<i64>().unwrap_or(0));
+                        entries.push(serde_json::json!({
+                            "commit": commit.short_sha,
+                            "author": commit.author,
+                            "date": date,
+                            "message": commit.message.lines().next().unwrap_or(""),
+                            "change_type": "deleted",
+                        }));
+                        prev_entity_content = None;
+                        prev_structural_hash = None;
+                    }
+                    continue;
+                }
+            };
+
+            let file_entities = plugin.extract_entities(&content, &file_path);
+            let entity = file_entities.iter().find(|e| e.name == params.entity_name);
+            let date = chrono_lite_format(commit.date.parse::<i64>().unwrap_or(0));
+            let msg = commit.message.lines().next().unwrap_or("").to_string();
+
+            match entity {
+                Some(ent) => {
+                    if !found_at_least_once {
+                        entity_type = ent.entity_type.clone();
+                    }
+
+                    if !found_at_least_once || prev_entity_content.is_none() {
+                        found_at_least_once = true;
+                        entries.push(serde_json::json!({
+                            "commit": commit.short_sha,
+                            "author": commit.author,
+                            "date": date,
+                            "message": msg,
+                            "change_type": "added",
+                        }));
+                    } else {
+                        let prev_hash = prev_entity_content
+                            .as_ref()
+                            .map(|c| sem_core::utils::hash::content_hash(c));
+                        let content_changed =
+                            prev_hash.as_deref() != Some(ent.content_hash.as_str());
+
+                        if content_changed {
+                            let structural_changed = match (
+                                ent.structural_hash.as_deref(),
+                                prev_structural_hash.as_deref(),
+                            ) {
+                                (Some(cur), Some(prev)) => cur != prev,
+                                _ => true,
+                            };
+
+                            let change_type = if structural_changed {
+                                "modified (logic)"
+                            } else {
+                                "modified (cosmetic)"
+                            };
+
+                            entries.push(serde_json::json!({
+                                "commit": commit.short_sha,
+                                "author": commit.author,
+                                "date": date,
+                                "message": msg,
+                                "change_type": change_type,
+                            }));
+                        }
+                    }
+
+                    prev_entity_content = Some(ent.content.clone());
+                    prev_structural_hash = ent.structural_hash.clone();
+                }
+                None => {
+                    if prev_entity_content.is_some() {
+                        entries.push(serde_json::json!({
+                            "commit": commit.short_sha,
+                            "author": commit.author,
+                            "date": date,
+                            "message": msg,
+                            "change_type": "deleted",
+                        }));
+                        prev_entity_content = None;
+                        prev_structural_hash = None;
+                    }
+                }
+            }
+        }
+
+        if !found_at_least_once {
+            return Err(internal_err(format!(
+                "Entity '{}' not found in any commit of {}",
+                params.entity_name, file_path
+            )));
+        }
 
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string_pretty(&serde_json::json!({
-                "base_ref": params.base_ref,
-                "target_ref": target_ref,
-                "files_analyzed": diff_result.file_count,
-                "total_changes": changes.len(),
-                "changes": changes,
+                "entity": params.entity_name,
+                "file": file_path,
+                "type": entity_type,
+                "total_changes": entries.len(),
+                "changes": entries,
             }))
             .unwrap_or_default(),
         )]))
     }
 
-    // ── Tool 4: Context budget ──
+    // ── Tool 6: Context ──
 
     #[tool(description = "Pack optimal entity context into a token budget. Priority: target entity (full) > direct dependents (full) > transitive (signature only).")]
     async fn sem_context(
@@ -553,54 +814,6 @@ impl SemServer {
             .unwrap_or_default(),
         )]))
     }
-
-    // ── Tool 5: Hotspot analysis ──
-
-    #[tool(description = "Analyze entity churn: find the most frequently changed entities across git history. High-churn entities are bug hotspots.")]
-    async fn sem_hotspot(
-        &self,
-        Parameters(params): Parameters<HotspotParams>,
-    ) -> Result<CallToolResult, rmcp::ErrorData> {
-        let ctx = self
-            .get_context(params.file_path.as_deref())
-            .await
-            .map_err(internal_err)?;
-
-        let file_path = params.file_path.as_ref().map(|fp| {
-            let (rel, _) = Self::resolve_file_path(&ctx.repo_root, fp);
-            rel
-        });
-
-        let limit = params.limit.unwrap_or(20);
-        let hotspots = sem_core::parser::hotspot::compute_hotspots(
-            &ctx.git,
-            &self.registry,
-            file_path.as_deref(),
-            50,
-        );
-
-        let result: Vec<serde_json::Value> = hotspots
-            .iter()
-            .take(limit)
-            .map(|h| {
-                serde_json::json!({
-                    "entity": h.entity_name,
-                    "type": h.entity_type,
-                    "file": h.file_path,
-                    "changes": h.change_count,
-                })
-            })
-            .collect();
-
-        Ok(CallToolResult::success(vec![Content::text(
-            serde_json::to_string_pretty(&serde_json::json!({
-                "hotspots": result.len(),
-                "max_commits_analyzed": 50,
-                "results": result,
-            }))
-            .unwrap_or_default(),
-        )]))
-    }
 }
 
 #[tool_handler]
@@ -608,12 +821,45 @@ impl ServerHandler for SemServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build()).with_instructions(
             "sem MCP server for entity-level semantic code intelligence. \
-             Provides impact analysis (deps, dependents, transitive impact, tests), \
-             semantic diffs, context budgeting, and hotspot detection.",
+             6 tools: entities, diff, blame, impact, log, context.",
         )
     }
 }
 
 fn internal_err(msg: impl ToString) -> rmcp::ErrorData {
     rmcp::ErrorData::internal_error(msg.to_string(), None)
+}
+
+/// Simple timestamp formatting without external deps.
+fn chrono_lite_format(unix_seconds: i64) -> String {
+    let days = unix_seconds / 86400;
+    let mut y = 1970i64;
+    let mut remaining_days = days;
+    loop {
+        let year_days = if (y % 4 == 0 && y % 100 != 0) || y % 400 == 0 {
+            366
+        } else {
+            365
+        };
+        if remaining_days < year_days {
+            break;
+        }
+        remaining_days -= year_days;
+        y += 1;
+    }
+    let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+    let month_days = if leap {
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    } else {
+        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    };
+    let mut m = 0;
+    for (i, &md) in month_days.iter().enumerate() {
+        if remaining_days < md {
+            m = i;
+            break;
+        }
+        remaining_days -= md;
+    }
+    format!("{:04}-{:02}-{:02}", y, m + 1, remaining_days + 1)
 }

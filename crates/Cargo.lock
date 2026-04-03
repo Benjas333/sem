@@ -1340,6 +1340,7 @@ dependencies = [
 name = "sem-mcp"
 version = "0.3.12"
 dependencies = [
+ "git2",
  "lru",
  "openssl",
  "rmcp",

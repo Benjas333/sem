@@ -3,7 +3,7 @@ name = "sem-mcp"
 version = "0.3.12"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-description = "MCP server for entity-level semantic code intelligence. 9 tools for agents to understand blast radius, dependencies, and impact."
+description = "MCP server for entity-level semantic code intelligence. 6 tools: entities, diff, blame, impact, log, context."
 repository = "https://github.com/Ataraxy-Labs/sem"
 homepage = "https://github.com/Ataraxy-Labs/sem"
 keywords = ["mcp", "semantic", "agent", "code-analysis", "impact"]
@@ -16,6 +16,7 @@ path = "src/main.rs"
 
 [dependencies]
 sem-core = { path = "../sem-core", version = "0.3.12" }
+git2 = "0.20"
 lru = "0.16"
 rmcp = { version = "1", features = ["server", "transport-io"] }
 tokio = { version = "1", features = ["full"] }

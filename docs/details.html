@@ -243,23 +243,15 @@
 
       <div class="cmd-doc">
         <div class="cmd-doc-header">
-          <span class="cmd-doc-name">sem graph</span>
-          <span class="cmd-doc-desc">Cross-file entity dependency graph</span>
-        </div>
-        <div class="cmd-doc-flags">
-          <div class="flag"><code>--entity &lt;name&gt;</code> <span>Show dependencies/dependents for a specific entity</span></div>
-          <div class="flag"><code>--format &lt;fmt&gt;</code> <span>terminal or json</span></div>
-          <div class="flag"><code>--file-exts &lt;ext&gt;...</code> <span>Filter by extension</span></div>
-        </div>
-      </div>
-
-      <div class="cmd-doc">
-        <div class="cmd-doc-header">
           <span class="cmd-doc-name">sem impact</span>
           <span class="cmd-doc-desc">What breaks if this entity changes?</span>
         </div>
         <div class="cmd-doc-flags">
           <div class="flag"><code>&lt;entity&gt;</code> <span>Name of the entity to analyze</span></div>
+          <div class="flag"><code>--file &lt;path&gt;</code> <span>Disambiguate when multiple entities share a name</span></div>
+          <div class="flag"><code>--deps</code> <span>Show direct dependencies only</span></div>
+          <div class="flag"><code>--dependents</code> <span>Show direct dependents only</span></div>
+          <div class="flag"><code>--tests</code> <span>Show affected test entities only</span></div>
           <div class="flag"><code>--json</code> <span>Output as JSON</span></div>
           <div class="flag"><code>--file-exts &lt;ext&gt;...</code> <span>Filter by extension</span></div>
         </div>
@@ -273,6 +265,62 @@
         <div class="cmd-doc-flags">
           <div class="flag"><code>&lt;file&gt;</code> <span>File to blame</span></div>
           <div class="flag"><code>--json</code> <span>Output as JSON</span></div>
+        </div>
+      </div>
+
+      <div class="cmd-doc">
+        <div class="cmd-doc-header">
+          <span class="cmd-doc-name">sem log</span>
+          <span class="cmd-doc-desc">Evolution of an entity through git history</span>
+        </div>
+        <div class="cmd-doc-flags">
+          <div class="flag"><code>&lt;entity&gt;</code> <span>Name of the entity to trace</span></div>
+          <div class="flag"><code>--file &lt;path&gt;</code> <span>File containing the entity (auto-detected if omitted)</span></div>
+          <div class="flag"><code>--limit &lt;n&gt;</code> <span>Maximum commits to scan (default: 50)</span></div>
+          <div class="flag"><code>-v, --verbose</code> <span>Show content diff between versions</span></div>
+          <div class="flag"><code>--json</code> <span>Output as JSON</span></div>
+        </div>
+      </div>
+
+      <div class="cmd-doc">
+        <div class="cmd-doc-header">
+          <span class="cmd-doc-name">sem entities</span>
+          <span class="cmd-doc-desc">List all entities in a file</span>
+        </div>
+        <div class="cmd-doc-flags">
+          <div class="flag"><code>&lt;file&gt;</code> <span>File to extract entities from</span></div>
+          <div class="flag"><code>--json</code> <span>Output as JSON</span></div>
+        </div>
+      </div>
+
+      <div class="cmd-doc">
+        <div class="cmd-doc-header">
+          <span class="cmd-doc-name">sem context</span>
+          <span class="cmd-doc-desc">Token-budgeted context for an entity (for AI prompts)</span>
+        </div>
+        <div class="cmd-doc-flags">
+          <div class="flag"><code>&lt;entity&gt;</code> <span>Name of the entity</span></div>
+          <div class="flag"><code>--file &lt;path&gt;</code> <span>Disambiguate when multiple entities share a name</span></div>
+          <div class="flag"><code>--budget &lt;n&gt;</code> <span>Token budget (default: 8000)</span></div>
+          <div class="flag"><code>--json</code> <span>Output as JSON</span></div>
+          <div class="flag"><code>--file-exts &lt;ext&gt;...</code> <span>Filter by extension</span></div>
+        </div>
+      </div>
+
+      <div class="cmd-doc">
+        <div class="cmd-doc-header">
+          <span class="cmd-doc-name">sem setup</span>
+          <span class="cmd-doc-desc">Replace git diff with sem diff globally</span>
+        </div>
+        <div class="cmd-doc-flags">
+          <div class="flag"><span>Installs a git diff wrapper so every <code>git diff</code> runs through sem automatically</span></div>
+        </div>
+      </div>
+
+      <div class="cmd-doc">
+        <div class="cmd-doc-header">
+          <span class="cmd-doc-name">sem unsetup</span>
+          <span class="cmd-doc-desc">Restore default git diff behavior</span>
         </div>
       </div>
     </section>
