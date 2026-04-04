@@ -9,7 +9,7 @@
 <p align="center">
   <a href="https://github.com/Ataraxy-Labs/sem/releases/latest"><img src="https://img.shields.io/github/v/release/Ataraxy-Labs/sem?color=blue&label=release" alt="Release"></a>
   <img src="https://img.shields.io/badge/rust-stable-orange" alt="Rust">
-  <img src="https://img.shields.io/badge/tests-97_passing-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-118_passing-brightgreen" alt="Tests">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="License"></a>
   <img src="https://img.shields.io/badge/languages-21-blue" alt="Languages">
 </p>
@@ -39,7 +39,7 @@ Summary: 1 added, 1 modified, 1 deleted across 2 files
 ## Install
 
 ```bash
-brew install sem-cli
+brew install ataraxy-labs/tap/sem
 ```
 
 Or build from source (requires Rust):
@@ -59,9 +59,13 @@ docker build -t sem .
 docker run --rm -it -u "$(id -u):$(id -g)" -v "$(pwd):/repo" sem diff
 ```
 
-## Usage
+## Commands
 
 Works in any Git repo. No setup required. Also works outside Git for arbitrary file comparison.
+
+### sem diff
+
+Entity-level diff with rename detection, structural hashing, and word-level inline highlights.
 
 ```bash
 # Semantic diff of working changes
@@ -76,11 +80,17 @@ sem diff --commit abc1234
 # Commit range
 sem diff --from HEAD~5 --to HEAD
 
+# Verbose mode (word-level inline diffs for each entity)
+sem diff -v
+
 # Plain text output (git status style)
 sem diff --format plain
 
 # JSON output (for AI agents, CI pipelines)
 sem diff --format json
+
+# Markdown output (for PRs, reports)
+sem diff --format markdown
 
 # Compare any two files (no git repo needed)
 sem diff file1.ts file2.ts
@@ -91,15 +101,83 @@ echo '[{"filePath":"src/main.rs","status":"modified","beforeContent":"...","afte
 
 # Only specific file types
 sem diff --file-exts .py .rs
+```
 
-# Entity dependency graph
-sem graph
+### sem impact
 
-# Impact analysis (what breaks if this entity changes?)
-sem impact validateToken
+Cross-file dependency graph shows what breaks if an entity changes.
 
-# Entity-level blame
+```bash
+# Full impact analysis
+sem impact authenticateUser
+
+# Direct dependencies only
+sem impact authenticateUser --deps
+
+# Direct dependents only
+sem impact authenticateUser --dependents
+
+# Affected tests only
+sem impact authenticateUser --tests
+
+# JSON output
+sem impact authenticateUser --json
+
+# Disambiguate by file
+sem impact authenticateUser --file src/auth.ts
+```
+
+### sem blame
+
+Entity-level blame showing who last modified each function, class, or method.
+
+```bash
 sem blame src/auth.ts
+
+# JSON output
+sem blame src/auth.ts --json
+```
+
+### sem log
+
+Track how a single entity evolved through git history.
+
+```bash
+sem log authenticateUser
+
+# Verbose mode (show content diff between versions)
+sem log authenticateUser -v
+
+# Limit commits scanned
+sem log authenticateUser --limit 20
+
+# JSON output
+sem log authenticateUser --json
+```
+
+### sem entities
+
+List all entities in a file with their types and line ranges.
+
+```bash
+sem entities src/auth.ts
+
+# JSON output
+sem entities src/auth.ts --json
+```
+
+### sem context
+
+Token-budgeted context for LLMs: the entity, its dependencies, and its dependents, fitted to a token budget.
+
+```bash
+sem context authenticateUser
+
+# Custom token budget
+sem context authenticateUser --budget 4000
+
+# JSON output
+sem context authenticateUser --json
 ```
 
 ## Use as default Git diff
@@ -110,7 +188,7 @@ Replace `git diff` output with entity-level diffs. Agents and humans get sem out
 sem setup
 ```
 
-Now `git diff` shows entity-level changes instead of line-level. No prompts, no agent configuration needed. Everything that calls `git diff` gets sem output automatically.
+Now `git diff` shows entity-level changes instead of line-level. No prompts, no agent configuration needed. Everything that calls `git diff` gets sem output automatically. Also installs a pre-commit hook that shows entity-level blast radius of staged changes.
 
 To disable and go back to normal git diff:
 
@@ -167,6 +245,27 @@ Three-phase entity matching:
 3. **Fuzzy similarity** — >80% token overlap = probable rename
 
 This means sem detects renames and moves, not just additions and deletions. Structural hashing also distinguishes cosmetic changes (whitespace, formatting) from real logic changes.
+
+## MCP Server
+
+sem includes an MCP server with 6 tools for AI agents: `sem_entities`, `sem_diff`, `sem_blame`, `sem_impact`, `sem_log`, `sem_context`. These mirror the CLI commands exactly.
+
+```json
+{
+  "mcpServers": {
+    "sem": {
+      "command": "sem-mcp"
+    }
+  }
+}
+```
+
+Install the MCP binary:
+
+```bash
+cd sem/crates
+cargo install --path sem-mcp
+```
 
 ## JSON output
 
