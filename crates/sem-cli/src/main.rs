@@ -95,6 +95,10 @@ enum Commands {
         /// Only include files with these extensions (e.g. --file-exts .py .rs)
         #[arg(long)]
         file_exts: Vec<String>,
+
+        /// Skip the SQLite entity cache (rebuild from scratch)
+        #[arg(long)]
+        no_cache: bool,
     },
     /// Show semantic blame — who last modified each entity
     Blame {
@@ -159,6 +163,10 @@ enum Commands {
         /// Only include files with these extensions (e.g. --file-exts .py .rs)
         #[arg(long)]
         file_exts: Vec<String>,
+
+        /// Skip the SQLite entity cache (rebuild from scratch)
+        #[arg(long)]
+        no_cache: bool,
     },
     /// Replace `git diff` with `sem diff` globally
     Setup,
@@ -225,6 +233,7 @@ fn main() {
             tests,
             json,
             file_exts,
+            no_cache,
         }) => {
             let mode = if deps {
                 ImpactMode::Deps
@@ -246,6 +255,7 @@ fn main() {
                 json,
                 file_exts,
                 mode,
+                no_cache,
             });
         }
         Some(Commands::Log {
@@ -283,6 +293,7 @@ fn main() {
             budget,
             json,
             file_exts,
+            no_cache,
         }) => {
             context_command(ContextOptions {
                 cwd: std::env::current_dir()
@@ -294,6 +305,7 @@ fn main() {
                 budget,
                 json,
                 file_exts,
+                no_cache,
             });
         }
         Some(Commands::Setup) => {
