@@ -180,6 +180,8 @@ enum Commands {
         #[arg(long)]
         no_cache: bool,
     },
+    /// Start the MCP server (stdin/stdout transport)
+    Mcp,
     /// Replace `git diff` with `sem diff` globally
     Setup,
     /// Restore default `git diff` behavior
@@ -329,6 +331,12 @@ fn main() {
                 file_exts,
                 no_cache,
             });
+        }
+        Some(Commands::Mcp) => {
+            if let Err(e) = sem_mcp::run() {
+                eprintln!("{} {}", "error:".red().bold(), e);
+                std::process::exit(1);
+            }
         }
         Some(Commands::Setup) => {
             if let Err(e) = commands::setup::run() {

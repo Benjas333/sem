@@ -1295,6 +1295,7 @@ dependencies = [
  "openssl-sys",
  "rusqlite",
  "sem-core",
+ "sem-mcp",
  "serde_json",
  "similar",
 ]
