@@ -100,6 +100,10 @@ fn get_dart() -> Option<Language> {
     Some(tree_sitter_dart::LANGUAGE.into())
 }
 
+fn get_perl() -> Option<Language> {
+    Some(tree_sitter_perl_next::LANGUAGE.into())
+}
+
 fn get_ocaml() -> Option<Language> {
     Some(tree_sitter_ocaml::LANGUAGE_OCAML.into())
 }
@@ -532,6 +536,20 @@ static DART_CONFIG: LanguageConfig = LanguageConfig {
     get_language: get_dart,
 };
   
+static PERL_CONFIG: LanguageConfig = LanguageConfig {
+    id: "perl",
+    extensions: &[".pl", ".pm"],
+    entity_node_types: &[
+        "subroutine_declaration_statement",
+        "package_statement",
+    ],
+    container_node_types: &["block"],
+    call_entity_identifiers: &[],
+    suppressed_nested_entities: &[],
+    scope_boundary_types: &[],
+    get_language: get_perl,
+};
+
 static OCAML_CONFIG: LanguageConfig = LanguageConfig {
     id: "ocaml",
     extensions: &[".ml"],
@@ -593,6 +611,7 @@ static ALL_CONFIGS: &[&LanguageConfig] = &[
     &KOTLIN_CONFIG,
     &XML_CONFIG,
     &DART_CONFIG,
+    &PERL_CONFIG,
     &OCAML_CONFIG,
     &OCAML_INTERFACE_CONFIG,
 ];
@@ -614,6 +633,7 @@ pub fn get_all_code_extensions() -> &'static [&'static str] {
         ".xml", ".plist", ".svg", ".xhtml", ".csproj", ".fsproj", ".vbproj", ".props", ".targets",
         ".nuspec", ".resx", ".xaml", ".axml",
         ".dart",
+        ".pl", ".pm",
         ".ml", ".mli",
     ];
     EXTENSIONS

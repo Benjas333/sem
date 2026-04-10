@@ -121,20 +121,55 @@ fn pre_commit_hook_section() -> String {
     )
 }
 
-fn install_pre_commit_hook() {
-    // Best-effort: find .git/hooks in current directory
+fn resolve_hooks_dir() -> Option<PathBuf> {
+    // Respect core.hooksPath if set
+    let hooks_path = Command::new("git")
+        .args(["config", "core.hooksPath"])
+        .output();
+
+    if let Ok(output) = &hooks_path {
+        if output.status.success() {
+            let custom = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !custom.is_empty() {
+                let p = PathBuf::from(&custom);
+                // Could be relative to repo root
+                if p.is_absolute() {
+                    return Some(p);
+                }
+                // Resolve relative to working tree
+                if let Ok(wt) = Command::new("git")
+                    .args(["rev-parse", "--show-toplevel"])
+                    .output()
+                {
+                    if wt.status.success() {
+                        let root = String::from_utf8_lossy(&wt.stdout).trim().to_string();
+                        return Some(PathBuf::from(root).join(custom));
+                    }
+                }
+            }
+        }
+    }
+
+    // Default: .git/hooks
     let git_dir = Command::new("git")
         .args(["rev-parse", "--git-dir"])
         .output();
 
-    let git_dir = match git_dir {
+    match git_dir {
         Ok(output) if output.status.success() => {
-            String::from_utf8_lossy(&output.stdout).trim().to_string()
+            let dir = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            Some(PathBuf::from(dir).join("hooks"))
         }
-        _ => return, // Not in a git repo, skip
+        _ => None,
+    }
+}
+
+fn install_pre_commit_hook() {
+    let hooks_dir = match resolve_hooks_dir() {
+        Some(d) => d,
+        None => return, // Not in a git repo, skip
     };
 
-    let hooks_dir = PathBuf::from(&git_dir).join("hooks");
     if !hooks_dir.exists() {
         let _ = fs::create_dir_all(&hooks_dir);
     }
@@ -151,6 +186,17 @@ fn install_pre_commit_hook() {
             );
             return;
         }
+        // Back up the existing hook
+        let backup = hooks_dir.join("pre-commit.sem-backup");
+        if !backup.exists() {
+            if fs::copy(&hook_path, &backup).is_ok() {
+                println!(
+                    "{} Backed up existing hook to {}",
+                    "✓".green().bold(),
+                    backup.display()
+                );
+            }
+        }
         let updated = format!("{}\n{}", existing.trim_end(), pre_commit_hook_section());
         if fs::write(&hook_path, updated).is_ok() {
             let _ = set_executable(&hook_path);
@@ -160,8 +206,8 @@ fn install_pre_commit_hook() {
             );
         }
     } else {
-        // Create new hook
-        let content = format!("#!/bin/sh\n{}\nexit 0\n", pre_commit_hook_section());
+        // Create new hook (exit 0 inside markers so unsetup cleans up fully)
+        let content = format!("#!/bin/sh\n{}", pre_commit_hook_section());
         if fs::write(&hook_path, content).is_ok() {
             let _ = set_executable(&hook_path);
             println!(
@@ -213,18 +259,12 @@ pub fn unsetup() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn remove_pre_commit_hook() {
-    let git_dir = Command::new("git")
-        .args(["rev-parse", "--git-dir"])
-        .output();
-
-    let git_dir = match git_dir {
-        Ok(output) if output.status.success() => {
-            String::from_utf8_lossy(&output.stdout).trim().to_string()
-        }
-        _ => return,
+    let hooks_dir = match resolve_hooks_dir() {
+        Some(d) => d,
+        None => return,
     };
 
-    let hook_path = PathBuf::from(&git_dir).join("hooks").join("pre-commit");
+    let hook_path = hooks_dir.join("pre-commit");
     if !hook_path.exists() {
         return;
     }
@@ -258,10 +298,17 @@ fn remove_pre_commit_hook() {
     }
 
     let result = new_lines.join("\n");
-    let trimmed = result.trim();
 
-    // If only shebang + exit 0 remain, remove the hook entirely
-    if trimmed == "#!/bin/sh\nexit 0" || trimmed == "#!/bin/sh" || trimmed.is_empty() {
+    // Check if only boilerplate remains (shebang, exit 0, whitespace)
+    let meaningful: Vec<&str> = result
+        .lines()
+        .filter(|l| {
+            let t = l.trim();
+            !t.is_empty() && t != "#!/bin/sh" && t != "#!/bin/bash" && t != "exit 0"
+        })
+        .collect();
+
+    if meaningful.is_empty() {
         let _ = fs::remove_file(&hook_path);
         println!(
             "{} Removed sem-only pre-commit hook",

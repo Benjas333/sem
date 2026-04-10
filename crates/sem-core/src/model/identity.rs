@@ -15,7 +15,7 @@ pub fn match_entities(
     before: &[SemanticEntity],
     after: &[SemanticEntity],
     _file_path: &str,
-    similarity_fn: Option<&dyn Fn(&SemanticEntity, &SemanticEntity) -> f64>,
+    _similarity_fn: Option<&dyn Fn(&SemanticEntity, &SemanticEntity) -> f64>,
     commit_sha: Option<&str>,
     author: Option<&str>,
 ) -> MatchResult {
@@ -157,6 +157,7 @@ pub fn match_entities(
     }
 
     // Phase 3: Fuzzy similarity (>80% threshold)
+    // Optimized: pre-compute token sets once per entity, group by type
     let still_unmatched_before: Vec<&SemanticEntity> = unmatched_before
         .iter()
         .filter(|e| !matched_before.contains(e.id.as_str()))
@@ -168,97 +169,121 @@ pub fn match_entities(
         .copied()
         .collect();
 
-    if let Some(sim_fn) = similarity_fn {
-        if !still_unmatched_before.is_empty() && !still_unmatched_after.is_empty() {
-            const THRESHOLD: f64 = 0.8;
-            // Size ratio filter: pairs with very different content lengths can't reach 0.8 Jaccard
-            const SIZE_RATIO_CUTOFF: f64 = 0.5;
+    if !still_unmatched_before.is_empty() && !still_unmatched_after.is_empty() {
+        const THRESHOLD: f64 = 0.8;
+        const SIZE_RATIO_CUTOFF: f64 = 0.5;
 
-            // Pre-compute content lengths for O(1) size filtering
-            let before_lens: Vec<usize> = still_unmatched_before
-                .iter()
-                .map(|e| e.content.split_whitespace().count())
-                .collect();
-            let after_lens: Vec<usize> = still_unmatched_after
-                .iter()
-                .map(|e| e.content.split_whitespace().count())
-                .collect();
+        // Pre-compute token sets once per entity (N+M instead of N×M allocations)
+        let before_sets: Vec<HashSet<&str>> = still_unmatched_before
+            .iter()
+            .map(|e| e.content.split_whitespace().collect())
+            .collect();
+        let after_sets: Vec<HashSet<&str>> = still_unmatched_after
+            .iter()
+            .map(|e| e.content.split_whitespace().collect())
+            .collect();
 
-            for (ai, after_entity) in still_unmatched_after.iter().enumerate() {
-                let mut best_match: Option<&SemanticEntity> = None;
-                let mut best_score: f64 = 0.0;
-                let a_len = after_lens[ai];
+        // Group before entities by type: O(sum(n_t × m_t)) instead of O(N×M)
+        let mut before_by_type: HashMap<&str, Vec<usize>> = HashMap::new();
+        for (i, e) in still_unmatched_before.iter().enumerate() {
+            before_by_type
+                .entry(e.entity_type.as_str())
+                .or_default()
+                .push(i);
+        }
 
-                for (bi, before_entity) in still_unmatched_before.iter().enumerate() {
-                    if matched_before.contains(before_entity.id.as_str()) {
-                        continue;
-                    }
-                    if before_entity.entity_type != after_entity.entity_type {
-                        continue;
-                    }
+        for (ai, after_entity) in still_unmatched_after.iter().enumerate() {
+            let candidates = match before_by_type.get(after_entity.entity_type.as_str()) {
+                Some(indices) => indices,
+                None => continue,
+            };
 
-                    // Early exit: skip pairs where token count ratio is too different
-                    let b_len = before_lens[bi];
-                    let (min_l, max_l) = if a_len < b_len { (a_len, b_len) } else { (b_len, a_len) };
-                    if max_l > 0 && (min_l as f64 / max_l as f64) < SIZE_RATIO_CUTOFF {
-                        continue;
-                    }
+            let a_set = &after_sets[ai];
+            let a_len = a_set.len();
+            let mut best_idx: Option<usize> = None;
+            let mut best_score: f64 = 0.0;
 
-                    let score = sim_fn(before_entity, after_entity);
-                    if score > best_score && score >= THRESHOLD {
-                        best_score = score;
-                        best_match = Some(before_entity);
-                    }
+            for &bi in candidates {
+                if matched_before.contains(still_unmatched_before[bi].id.as_str()) {
+                    continue;
                 }
 
-                if let Some(matched) = best_match {
-                    matched_before.insert(&matched.id);
-                    matched_after.insert(&after_entity.id);
+                let b_set = &before_sets[bi];
+                let b_len = b_set.len();
 
-                    // If name and file are the same, only the parent qualifier changed.
-                    if matched.name == after_entity.name
-                        && matched.file_path == after_entity.file_path
-                        && matched.content_hash == after_entity.content_hash
-                    {
-                        continue;
-                    }
-
-                    let change_type = if matched.file_path != after_entity.file_path {
-                        ChangeType::Moved
-                    } else {
-                        ChangeType::Renamed
-                    };
-
-                    let old_file_path = if matched.file_path != after_entity.file_path {
-                        Some(matched.file_path.clone())
-                    } else {
-                        None
-                    };
-
-                    let old_entity_name = if matched.name != after_entity.name {
-                        Some(matched.name.clone())
-                    } else {
-                        None
-                    };
-
-                    changes.push(SemanticChange {
-                        id: format!("change::{}", after_entity.id),
-                        entity_id: after_entity.id.clone(),
-                        change_type,
-                        entity_type: after_entity.entity_type.clone(),
-                        entity_name: after_entity.name.clone(),
-                        entity_line: after_entity.start_line,
-                        file_path: after_entity.file_path.clone(),
-                        old_entity_name,
-                        old_file_path,
-                        before_content: Some(matched.content.clone()),
-                        after_content: Some(after_entity.content.clone()),
-                        commit_sha: commit_sha.map(String::from),
-                        author: author.map(String::from),
-                        timestamp: None,
-                        structural_change: None,
-                    });
+                // Size ratio filter using pre-computed set lengths
+                let (min_l, max_l) = if a_len < b_len {
+                    (a_len, b_len)
+                } else {
+                    (b_len, a_len)
+                };
+                if max_l > 0 && (min_l as f64 / max_l as f64) < SIZE_RATIO_CUTOFF {
+                    continue;
                 }
+
+                // Inline Jaccard on pre-computed sets
+                let intersection = a_set.intersection(b_set).count();
+                let union = a_len + b_len - intersection;
+                let score = if union == 0 {
+                    0.0
+                } else {
+                    intersection as f64 / union as f64
+                };
+
+                if score >= THRESHOLD && score > best_score {
+                    best_score = score;
+                    best_idx = Some(bi);
+                }
+            }
+
+            if let Some(bi) = best_idx {
+                let matched = still_unmatched_before[bi];
+                matched_before.insert(&matched.id);
+                matched_after.insert(&after_entity.id);
+
+                // If name and file are the same, only the parent qualifier changed.
+                if matched.name == after_entity.name
+                    && matched.file_path == after_entity.file_path
+                    && matched.content_hash == after_entity.content_hash
+                {
+                    continue;
+                }
+
+                let change_type = if matched.file_path != after_entity.file_path {
+                    ChangeType::Moved
+                } else {
+                    ChangeType::Renamed
+                };
+
+                let old_file_path = if matched.file_path != after_entity.file_path {
+                    Some(matched.file_path.clone())
+                } else {
+                    None
+                };
+
+                let old_entity_name = if matched.name != after_entity.name {
+                    Some(matched.name.clone())
+                } else {
+                    None
+                };
+
+                changes.push(SemanticChange {
+                    id: format!("change::{}", after_entity.id),
+                    entity_id: after_entity.id.clone(),
+                    change_type,
+                    entity_type: after_entity.entity_type.clone(),
+                    entity_name: after_entity.name.clone(),
+                    entity_line: after_entity.start_line,
+                    file_path: after_entity.file_path.clone(),
+                    old_entity_name,
+                    old_file_path,
+                    before_content: Some(matched.content.clone()),
+                    after_content: Some(after_entity.content.clone()),
+                    commit_sha: commit_sha.map(String::from),
+                    author: author.map(String::from),
+                    timestamp: None,
+                    structural_change: None,
+                });
             }
         }
     }

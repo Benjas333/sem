@@ -1478,4 +1478,38 @@ end
         assert_eq!(find("foo").entity_type, "class");
         assert_eq!(find("bar").entity_type, "class");
     }
+
+    #[test]
+    fn test_perl_entity_extraction() {
+        let code = r#"package Foo::Bar;
+
+use strict;
+use warnings;
+
+sub hello {
+    my ($self, $name) = @_;
+    print "Hello, $name!\n";
+}
+
+sub _private_helper {
+    return 42;
+}
+
+1;
+"#;
+        let plugin = CodeParserPlugin;
+        let entities = plugin.extract_entities(code, "Foo/Bar.pm");
+        let names: Vec<&str> = entities.iter().map(|e| e.name.as_str()).collect();
+
+        assert!(names.contains(&"Foo::Bar"), "got: {:?}", names);
+        assert!(names.contains(&"hello"), "got: {:?}", names);
+        assert!(names.contains(&"_private_helper"), "got: {:?}", names);
+
+        let find = |name: &str| entities.iter().find(|e| e.name == name)
+            .unwrap_or_else(|| panic!("Should find {}, got: {:?}", name, names));
+
+        assert_eq!(find("Foo::Bar").entity_type, "package");
+        assert_eq!(find("hello").entity_type, "function");
+        assert_eq!(find("_private_helper").entity_type, "function");
+    }
 }
