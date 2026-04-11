@@ -405,6 +405,37 @@ export class Greeter {
     }
 
     #[test]
+    fn test_typescript_generator_function_entity_extraction() {
+        let code = r#"
+export async function* streamUsers(): AsyncGenerator<string> {
+    yield "alice";
+}
+"#;
+        let plugin = CodeParserPlugin;
+        let entities = plugin.extract_entities(code, "stream.ts");
+        let stream = entities.iter().find(|e| e.name == "streamUsers");
+
+        assert!(stream.is_some(), "Should find generator function, got: {:?}", entities.iter().map(|e| (&e.name, &e.entity_type)).collect::<Vec<_>>());
+        assert_eq!(stream.unwrap().entity_type, "function");
+    }
+
+    #[test]
+    fn test_javascript_generator_function_entity_extraction() {
+        let code = r#"
+export function* ids() {
+    yield 1;
+    yield 2;
+}
+"#;
+        let plugin = CodeParserPlugin;
+        let entities = plugin.extract_entities(code, "ids.js");
+        let ids = entities.iter().find(|e| e.name == "ids");
+
+        assert!(ids.is_some(), "Should find generator function, got: {:?}", entities.iter().map(|e| (&e.name, &e.entity_type)).collect::<Vec<_>>());
+        assert_eq!(ids.unwrap().entity_type, "function");
+    }
+
+    #[test]
     fn test_nested_functions_typescript() {
         let code = r#"
 function outer() {

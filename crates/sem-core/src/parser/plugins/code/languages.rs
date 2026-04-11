@@ -180,6 +180,7 @@ static TYPESCRIPT_CONFIG: LanguageConfig = LanguageConfig {
     extensions: &[".ts", ".mts", ".cts"],
     entity_node_types: &[
         "function_declaration",
+        "generator_function_declaration",
         "class_declaration",
         "interface_declaration",
         "type_alias_declaration",
@@ -202,6 +203,7 @@ static TSX_CONFIG: LanguageConfig = LanguageConfig {
     extensions: &[".tsx"],
     entity_node_types: &[
         "function_declaration",
+        "generator_function_declaration",
         "class_declaration",
         "interface_declaration",
         "type_alias_declaration",
@@ -224,6 +226,7 @@ static JAVASCRIPT_CONFIG: LanguageConfig = LanguageConfig {
     extensions: &[".js", ".jsx", ".mjs", ".cjs", ".es6"],
     entity_node_types: &[
         "function_declaration",
+        "generator_function_declaration",
         "class_declaration",
         "export_statement",
         "lexical_declaration",

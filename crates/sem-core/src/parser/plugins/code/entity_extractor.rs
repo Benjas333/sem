@@ -851,7 +851,11 @@ fn node_text<'a>(node: Node, source: &'a [u8]) -> &'a str {
 
 fn map_node_type(tree_sitter_type: &str) -> &str {
     match tree_sitter_type {
-        "function_declaration" | "function_definition" | "function_item" | "function_signature"
+        "function_declaration"
+        | "generator_function_declaration"
+        | "function_definition"
+        | "function_item"
+        | "function_signature"
         | "subroutine_declaration_statement" => "function",
         "method_declaration" | "method_definition" | "method" | "singleton_method" => "method",
         "class_declaration" | "class_definition" | "class_specifier" => "class",
