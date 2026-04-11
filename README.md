@@ -8,6 +8,7 @@
 </p>
 
 <p align="center">
+  <a href="https://ataraxy-labs.com/blogs/code-is-not-text">Why sem?</a> ·
   <a href="#install">Install</a> ·
   <a href="#commands">Commands</a> ·
   <a href="#mcp-server">MCP Server</a> ·
