@@ -8,10 +8,12 @@ import { pipeline } from 'node:stream/promises';
 import {
   getBinaryName,
   getInstalledBinaryPath,
+  getReleaseBaseUrl,
   getReleaseDownloadUrl,
   readPackageVersion,
   resolveReleaseArtifact,
 } from './package-meta.mjs';
+import { verifyChecksum } from './verify-checksum.mjs';
 
 async function downloadFile(url, destinationPath) {
   const response = await fetch(url, {
@@ -63,6 +65,7 @@ async function installFromBinary(sourceBinaryPath, destinationBinaryPath) {
 
 async function installFromRelease(destinationBinaryPath) {
   const version = await readPackageVersion();
+  const releaseBaseUrl = getReleaseBaseUrl(version);
   const releaseUrl = getReleaseDownloadUrl(version);
   const archiveName = resolveReleaseArtifact();
   const temporaryDirectory = await fs.mkdtemp(
@@ -72,6 +75,7 @@ async function installFromRelease(destinationBinaryPath) {
   try {
     const archivePath = path.join(temporaryDirectory, archiveName);
     await downloadFile(releaseUrl, archivePath);
+    await verifyChecksum(archivePath, archiveName, releaseBaseUrl);
     extractArchive(archivePath, temporaryDirectory);
     await installFromBinary(
       path.join(temporaryDirectory, getBinaryName()),
