@@ -263,8 +263,8 @@ fn scope_resolve_comparison() {
     );
 
     let output_path = std::env::var("SCOPE_BENCH_OUTPUT")
-        .unwrap_or_else(|_| "/tmp/scope-resolve-bench.html".to_string());
-    std::fs::write(&output_path, &html).unwrap();
+        .unwrap_or_else(|_| std::env::temp_dir().join("scope-resolve-bench.html").to_string_lossy().to_string());
+    let _ = std::fs::write(&output_path, &html);
     eprintln!("Report written to {}", output_path);
 
     // Assertions: new resolver should find at least as many true positives
